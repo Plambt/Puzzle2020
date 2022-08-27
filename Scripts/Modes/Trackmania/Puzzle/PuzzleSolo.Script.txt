@@ -1,0 +1,355 @@
+#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+
+#Setting S_IsValidation False as "IsValidation"
+
+
+#Const	CompatibleMapTypes	"Puzzle"
+#Const	Version							"6/11/2022"
+#Const	ScriptName					"Modes/ShootMania/PuzzleSolo.Script.txt"
+
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
+#Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/PauseMenu_Server.Script.txt" as UIModules_PauseMenu
+#Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/EndRaceMenu_Server.Script.txt" as UIModules_EndRaceMenu
+#Include "ManiaApps/Nadeo/ModeLibs/Common/UIModules/Fade_Server.Script.txt" as UIModules_Fade
+
+#Const Description _("Beat Puzzle map with the fastest time possible!")
+#Const C_HudModulePath "" //< Path to the hud module
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/RaceTest/RaceTest.Script.txt" //< Url of the mania app
+
+***Match_StartServer***
+***
+SetupDefaultUI();
+***
+
+***Match_InitMap***
+***
+
+if (S_IsValidation) {
+    Layers::Create("Layer_DefaultValUI", DefaultValUI());
+    Layers::SetType("Layer_DefaultValUI", CUILayer::EUILayerType::Normal);
+    Layers::Attach("Layer_DefaultValUI");
+}
+else {
+    Layers::Create("Layer_Solo", PuzzleSoloUI());
+    Layers::SetType("Layer_Solo", CUILayer::EUILayerType::Normal);
+    Layers::Attach("Layer_Solo");
+}
+***
+
+***Match_StartMap***
+***
+declare persistent Integer BestScore_RaceTime for Map;
+if (BestScore_RaceTime == 0) {
+    BestScore_RaceTime = -1;
+}
+foreach (Player in AllPlayers) {
+    Player.UseCrudeExtrapolation = False;
+    Player.TrustClientSimu = False;
+    
+    // Display UIModules
+    declare netwrite Boolean Net_Race_Chrono_IsVisible for Player;
+    declare netwrite Boolean Net_Race_Checkpoint_IsVisible for Player;
+    declare netwrite Boolean Net_Campaign_BlockHelper_IsVisible for Player;
+    Net_Race_Chrono_IsVisible = True;
+    Net_Race_Checkpoint_IsVisible = True;
+    Net_Campaign_BlockHelper_IsVisible = True;
+}
+***
+
+***Match_PlayLoop***
+***
+declare persistent Integer BestScore_RaceTime for Map;
+foreach (Player in Players) {
+    declare netwrite Integer Net_PersonalBest for Player;
+    Net_PersonalBest = BestScore_RaceTime;
+    if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
+        SpawnPlayer(Player, 0, Player.ArmorMax, MapLandmarks_PlayerSpawn[0].PlayerSpawn, Now + 1500);
+    }
+}
+foreach (Event in PendingEvents) {
+    if (Event.Type == CSmModeEvent::EType::OnPlayerTriggersWaypoint) {
+        if (Event.IsFinish) {
+            if (S_IsValidation) {
+                log(Now - Event.Player.StartTime);
+                log(Map.TMObjective_AuthorTime);
+                if (Now - Event.Player.StartTime < Map.TMObjective_AuthorTime) {
+                    SetMapScores(Now - Event.Player.StartTime);
+                }
+                else if (Map.TMObjective_AuthorTime == -1 || Map.TMObjective_AuthorTime == 0) {
+                    SetMapScores(Now - Event.Player.StartTime);
+                }
+                UnspawnPlayer(Event.Player);
+            }
+            else {
+                //Player Finishes!!!
+                log((Now - Event.Player.StartTime) ^ " PlayerTime");
+                log(BestScore_RaceTime ^ " PlayerBest");
+                log(Map.TMObjective_AuthorTime ^ " AuthorTime");
+                //Solo_SetNewRecord(Event.Player.Score, GetRightMedal(Now - Event.Player.StartTime));
+                if ((Now - Event.Player.StartTime) < BestScore_RaceTime) {
+                    BestScore_RaceTime = (Now - Event.Player.StartTime);
+                }
+                else if (BestScore_RaceTime == -1) {
+                    BestScore_RaceTime = (Now - Event.Player.StartTime);
+                }
+                if (Event.Player != Null) {
+                    UnspawnPlayer(Event.Player);
+                }
+                while (Solo_NewRecordSequenceInProgress && !ServerShutdownRequested) {
+                    MB_Yield();
+                }
+            }
+        }
+    }
+}
+
+***
+
+Void SetupDefaultUI() {
+    UnspawnAnimDuration = 0;
+	SpawnDelayDuration = 0;
+	UIManager.UIAll.DisableZoomTransitions = True;
+	UsePvPWeapons = False;
+	UsePvPCollisions = False;
+	UsePvECollisions = False;
+	CheckpointBehaviour = CSmMode::ECheckpointBehaviour::Default;
+	RespawnBehaviour = CSmMode::ERespawnBehaviour::AlwaysRespawn;
+	GiveUpBehaviour = CSmMode::EGiveUpBehaviour::GiveUp;
+	GiveUpBehaviour_RespawnAfter = True;
+	
+	// Setup UI
+	UIManager.UIAll.ClearMarkers();
+	UIManager.UIAll.UISequence_CutSceneStyle = CUIConfig::ECutSceneStyle::TM;
+	UIManager.UIAll.OverlayHideCountdown = True;
+	UIManager.UIAll.OverlayHideChrono = True;
+	UIManager.UIAll.AltMenuNoDefaultScores = True;
+	UIManager.UIAll.ScoreTableOnlyManialink = True;
+	UIManager.UIAll.OverlayHideEndMapLadderRecap = True;
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
+	UIManager.UIAll.AltMenuNoDefaultScores = True;
+	UIManager.UIAll.AltMenuNoCustomScores = True;
+	UIManager.UIAll.OverlayHideChat = True;
+	UIManager.UIAll.OverlayHideSpectatorInfos = True;
+	UIManager.UIAll.OverlayChatOffset =  <-500., 0.>;
+	UIManager.UIAll.OverlayHide321Go = True;
+	UIManager.UIAll.OverlayHideMapInfo = True;
+	UIManager.UIAll.LabelsVisibility_SkipMarkersOnly = True;
+	
+	// Setup ManiaApp and UIModules
+	ClientManiaAppUrl = C_ManiaAppUrl;
+	declare netwrite Text[] Net_LibUI3_Modules for Teams[0];
+	declare netwrite Net_LibUI3_ModulesUpdate for Teams[0] = -1;
+	Net_LibUI3_Modules = [
+		"UIModule_Race_Chrono",
+		"UIModule_Race_Checkpoint",
+		"UIModule_Race_BlockHelper"
+	];
+	Net_LibUI3_ModulesUpdate = Now;
+}
+
+Void SetMapScores(Integer _RunTime) {
+	declare persistent Integer RememberedTime for Map;
+	RememberedTime = _RunTime;
+	Map.TMObjective_AuthorTime = _RunTime;
+	Map.ObjectiveTextAuthor = TL::TimeToText(Map.TMObjective_AuthorTime, True);
+	Map.ObjectiveTextGold 	= TL::TimeToText(Map.TMObjective_GoldTime, True);
+	Map.ObjectiveTextSilver = TL::TimeToText(Map.TMObjective_SilverTime, True);
+	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
+}
+
+CMode::EMedal GetRightMedal(Integer _RunTime) {
+	declare Integer AuthorTime = Map.TMObjective_AuthorTime;
+	declare Integer GoldTime = Map.TMObjective_GoldTime;
+	declare Integer SilverTime = Map.TMObjective_SilverTime;
+	declare Integer BronzeTime = Map.TMObjective_BronzeTime;
+	if (_RunTime <= AuthorTime) {
+        log("Author");
+        return CMode::EMedal::Author;
+    }
+    else if (_RunTime <= GoldTime && _RunTime > AuthorTime){
+        log("Gold");
+        return CMode::EMedal::Gold;
+    }
+    else if (_RunTime <= SilverTime && _RunTime > GoldTime){
+        log("Silver");
+        return CMode::EMedal::Silver;
+    }
+    else if (_RunTime <= BronzeTime && _RunTime> SilverTime){
+        log("Bronze");
+        return CMode::EMedal::Bronze;
+    }
+    else {
+        log("No Medal");
+        return CMode::EMedal::Finished;
+    }
+	log("Medal Script Failure");
+	return CMode::EMedal::None;
+}
+
+Text PuzzleSoloUI() {
+    return """
+    <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+    <manialink version="3" name="SoloUI">
+	<frame id="Frame_SoloUI" pos="0 35">
+	<frame id="Frame_Medal" pos="0 0">
+		<quad pos="-136 70" z-index="0" size="20 20" bgcolor="FFFA" halign="center" valign="center" style="MedalsBig" substyle="MedalSlot" id="Quad_Medal"/>
+		<quad pos="-136 85" z-index="0" size="58.9 30" bgcolor="FFFA" halign="center" style="UICommon128_1" substyle="BgDialogTitle" valign="top" opacity="1.0"/>
+	</frame>
+	<frame id="Frame_SoloGoal" pos="0 -40">
+		<label pos="-158 80" z-index="0" size="30 10" text="Next Medal :" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<label id="Label_NextMedal" pos="-132 80" z-index="0" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<quad pos="-165 85" z-index="0" size="58.9 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
+	</frame>
+	<frame id="Frame_SoloBest" pos="0 -30">
+		<label pos="-158 80" z-index="0" size="30 10" text="Personal Best :" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<label id="Label_PersonalBest" pos="-127 80" z-index="0" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<quad pos="-165 85" z-index="0" size="63 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
+	</frame>
+</frame>
+<script><!--
+	#Include "TextLib" as TL
+
+    Text GetMedalImage(Integer _PlayerBest) {
+        declare Integer AuthorTime = Map.TMObjective_AuthorTime;
+	declare Integer GoldTime = Map.TMObjective_GoldTime;
+	declare Integer SilverTime = Map.TMObjective_SilverTime;
+	declare Integer BronzeTime = Map.TMObjective_BronzeTime;
+    if (_PlayerBest <= 0) {
+        return "MedalSlot";
+    }
+	if (_PlayerBest <= AuthorTime) {
+        return "MedalNadeo";
+    }
+    else if (_PlayerBest <= GoldTime && _PlayerBest > AuthorTime){
+        return "MedalGold";
+    }
+    else if (_PlayerBest <= SilverTime && _PlayerBest > GoldTime){
+        return "MedalSilver";
+    }
+    else if (_PlayerBest <= BronzeTime && _PlayerBest> SilverTime){
+        return "MedalBronze";
+    }
+    else {
+        return "MedalSlot";
+    }
+	log("Medal Script Failure");
+	return "MedalSlot";
+    }
+
+main() {
+    declare CMlLabel Label_NextMedal <=> (Page.GetFirstChild("Label_NextMedal") as CMlLabel);
+    declare CMlLabel Label_PersonalBest <=> (Page.GetFirstChild("Label_PersonalBest") as CMlLabel);
+    declare CMlQuad Quad_Medal <=> (Page.GetFirstChild("Quad_Medal") as CMlQuad);
+    declare CMlFrame Frame_Medal <=> (Page.GetFirstChild("Frame_Medal") as CMlFrame);
+    declare CMlFrame Frame_SoloGoal <=> (Page.GetFirstChild("Frame_SoloGoal") as CMlFrame);
+    declare CMlFrame Frame_SoloUI <=> (Page.GetFirstChild("Frame_SoloUI") as CMlFrame);
+    declare Boolean IsMedalShown = False;
+    Frame_SoloGoal.Show();
+    while (True) {
+        yield;
+        if (InputPlayer != Null) {
+            declare netread Integer Net_PersonalBest for InputPlayer;
+            Quad_Medal.Substyle = GetMedalImage(Net_PersonalBest);
+
+            if (Net_PersonalBest <= 0) {
+                Label_PersonalBest.Value = TL::TimeToText(0, True);
+            }
+            else {
+                Label_PersonalBest.Value = TL::TimeToText(Net_PersonalBest, True);
+            }
+
+            switch (GetMedalImage(Net_PersonalBest)) {
+                case "MedalSlot": {
+                    Label_NextMedal.Value = TL::TimeToText(Map.TMObjective_BronzeTime, True);
+                }
+                case "MedalBronze": {
+                    Label_NextMedal.Value = TL::TimeToText(Map.TMObjective_SilverTime, True);
+                }
+                case "MedalSilver": {
+                    Label_NextMedal.Value = TL::TimeToText(Map.TMObjective_GoldTime, True);
+                }
+                case "MedalGold": {
+                    Label_NextMedal.Value = TL::TimeToText(Map.TMObjective_AuthorTime, True);
+                }
+                case "MedalNadeo": {
+                    Frame_SoloGoal.Hide();
+                }
+                default: {}
+            }
+        }
+        if (GUIPlayer != Null) {
+            if (GUIPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning && !IsMedalShown) {
+                log("New Record!!!");
+                AnimMgr.Add(Frame_SoloUI, "<frame pos=\"0 5\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
+                IsMedalShown = True;
+            }
+            else if (GUIPlayer.SpawnStatus != CSmPlayer::ESpawnStatus::Spawning && IsMedalShown){
+                AnimMgr.Add(Frame_SoloUI, "<frame pos=\"0 35\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
+                IsMedalShown = False;
+            }
+        }
+	}
+}
+--></script>
+</manialink>
+""";
+}
+
+Text DefaultValUI() {
+    return """
+    <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+    <manialink version="3" name="ValUI">
+	<frame id="Frame_ValAuthor">
+	<label pos="-158 80" z-index="0" size="30 10" text="Author Time :" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<label id="Label_AuthorTime" pos="-130 80" z-index="0" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<quad pos="-165 85" z-index="0" size="58.9 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
+	</frame>
+	<frame id="Frame_ValScore" pos="0 -10" hidden="1">
+	<label pos="-158 80" z-index="0" size="30 10" text="Author Score :" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<label id="Label_AuthorScore" pos="-128 80" z-index="0" size="15 10" text="0" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<quad pos="-165 85" z-index="0" size="55 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
+	</frame>
+	<frame id="Frame_NewRecord" z-index="10" pos="0">
+	<label pos="0 100" size="55 10" text="$fffNew Record!!!" textfont="GameFontExtraBold" halign="center" valign="center" textsize="5" textemboss="1"/>
+	<quad pos="0 100" size="58.9 15" bgcolor="FFFA" halign="center" style="UICommon128_1" substyle="BgDialogTitle" valign="center" opacity="1.0"/>
+	</frame>
+<script><!--
+	#Include "TextLib" as TL
+	main() {
+		declare CMlLabel Label_AuthorTime <=> (Page.GetFirstChild("Label_AuthorTime") as CMlLabel);
+		declare CMlLabel Label_AuthorScore <=> (Page.GetFirstChild("Label_AuthorScore") as CMlLabel);
+		declare CMlFrame Frame_NewRecord <=> (Page.GetFirstChild("Frame_NewRecord") as CMlFrame);
+		declare Integer PreviousAuthorTIme = Map.TMObjective_AuthorTime;
+		declare Integer NewMoveTime = 0;
+		while (True) {
+			yield;
+			if (Now >= NewMoveTime && NewMoveTime != 0) {
+				AnimMgr.Add(Frame_NewRecord, "<frame pos=\"0 0\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
+				NewMoveTime = 0;
+			}
+			if (PreviousAuthorTIme != Map.TMObjective_AuthorTime) {
+				log("New Record!!!");
+				AnimMgr.Add(Frame_NewRecord, "<frame pos=\"0 -15\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
+				NewMoveTime = Now + 1500;
+				PreviousAuthorTIme = Map.TMObjective_AuthorTime;
+			}
+			if (Map.TMObjective_AuthorTime <= 0) {
+				Label_AuthorTime.Value = TL::TimeToText(0, True);
+			}
+			else {
+				Label_AuthorTime.Value = TL::TimeToText(Map.TMObjective_AuthorTime, True);
+			}
+			if (TL::ToInteger(Map.ObjectiveTextAuthor) == -1) {
+				Label_AuthorScore.Value = "???";
+			}
+			else {
+				Label_AuthorScore.Value = TL::ToText(TL::ToInteger(Map.ObjectiveTextAuthor));
+			}
+	}
+}
+--></script>
+</manialink>
+""";
+}

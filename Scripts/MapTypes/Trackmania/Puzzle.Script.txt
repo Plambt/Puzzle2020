@@ -1,0 +1,1036 @@
+#RequireContext CSmMapType
+#Const Version			"03-21-2022"
+#Const MapTypeVersion	1
+#Const ScriptName		"Stunts.Script.txt"
+
+#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
+#Include "Libs/Nadeo/Layers2.Script.txt"	as Layers
+#Include "Libs/Nadeo/TMNext/TrackMania/Editor/MapType.Script.txt" as TMMapType
+#Include "Modes/TrackMania/TM_RaceTest_Local.Script.txt" as RaceTest
+#Include "TextLib" as TL
+#Include "MathLib" as ML
+
+Text EditorPuzzleToggleUI() {
+return
+"""
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<manialink version="3">
+<quad pos="-90 80" z-index="0" size="10 10" bgcolor="FFFA" style="Icons64x64_1" substyle="ClipPlay" scriptevents="1" halign="center" valign="center" id="PlayMapToggle"/>
+<label pos="-110 80.1" z-index="0" size="20 5" text="PlayMap" textfont="Oswald" halign="left" valign="center" id="PlayMapToggleText"/>
+<quad pos="-99.3 80" z-index="0" size="30 10" bgcolor="FFFA" style="Bgs1InRace" substyle="BgList" halign="center" valign="center"/>
+<script><!--
+main () {
+	declare CMlLabel PlayMapToggleText = (Page.GetFirstChild("PlayMapToggleText") as CMlLabel);
+	declare CMlQuad PlayMapToggle = (Page.GetFirstChild("PlayMapToggle") as CMlQuad);
+	declare Boolean IsPuzzleEnabled;
+	while(True) {
+		yield;
+		foreach(Event in PendingEvents) {
+			if(Event.Type == CGameManialinkScriptEvent::Type::MouseClick)	{	
+				if (Event.ControlId == "PlayMapToggle") {
+					if (IsPuzzleEnabled == False) {
+						SendCustomEvent("TogglePuzzleEditor", ["1"]);
+						PlayMapToggleText.Value = "Return";
+						PlayMapToggle.Substyle = "ClipRewind";
+						IsPuzzleEnabled = True;
+					}
+					else {
+						SendCustomEvent("TogglePuzzleEditor", ["0"]);
+						PlayMapToggleText.Value = "PlayMap";
+						PlayMapToggle.Substyle = "ClipPlay";
+						IsPuzzleEnabled = False;
+					}
+				}
+			}
+		}
+	}
+}
+--></script>
+<manialink/>
+""";
+}
+
+Void UpdateValidability() {
+	declare StartsFinishes = 0;
+	declare Starts = 0;
+	declare Finishes = 0;
+	declare Checkpoints = 0;
+	foreach (Anchor in AnchorData) {
+		if (Anchor.Block != Null)
+		{
+			switch (Anchor.Block.BlockModel.WaypointType) {
+				case CBlockModel::EWayPointType::StartFinish: StartsFinishes += 1;
+				case CBlockModel::EWayPointType::Start: Starts += 1;
+				case CBlockModel::EWayPointType::Finish: Finishes += 1;
+				case CBlockModel::EWayPointType::Checkpoint: Checkpoints += 1;
+			}
+		}
+		else
+		{
+			if (Anchor.DefaultTag == "Spawn") {
+				Starts += 1;
+			}
+			else if (Anchor.DefaultTag == "Goal")
+			{
+				Finishes += 1;
+			}
+			else if (Anchor.DefaultTag == "Checkpoint")
+			{
+				Checkpoints += 1;
+			}
+			else if (Anchor.DefaultTag == "StartFinish")
+			{
+				StartsFinishes += 1;
+			}
+
+		}
+	}
+	
+	// It's a multilap
+	if (StartsFinishes > 0) {
+		// No start line block, so there must be exactly one multilap block, so that we know where the car will spawn.
+		if (Starts == 0 && StartsFinishes > 1) {
+			ValidationStatus = CMapType::ValidationStatus::NotValidable;
+			//L16N [MapEditor] Message explaining to the player that a track can contain only one start line block.
+			ValidabilityRequirementsMessage = _("You can place only one starting point!");
+			return;
+		}
+		// A start line block may be present: in that case the car will spawn on it, and not on the multilap block.
+		// But there must be only one start line block (and there could be more than one multilap block).
+		if (Starts > 1) {
+			ValidationStatus = CMapType::ValidationStatus::NotValidable;
+			//L16N [MapEditor] Message explaining to the player that a track can contain only one start line block.
+			ValidabilityRequirementsMessage = _("You can place only one starting point!");
+			return;
+		}
+		// Has at least one checkpoint
+		if (Checkpoints < 1) {
+			ValidationStatus = CMapType::ValidationStatus::NotValidable;
+			//L16N [MapEditor] Message explaining to the player that a track has to contain at least one checkpoint block.
+			ValidabilityRequirementsMessage = _("You must place at least one checkpoint!");
+			return;
+		}
+	} 
+	// It's a simple race
+	else {
+		// Exactly one start
+		if (Starts != 1) {
+			ValidationStatus = CMapType::ValidationStatus::NotValidable;
+			//L16N [MapEditor] Message explaining to the player that a track has to contain exactly one start line block.
+			ValidabilityRequirementsMessage = _("You need to place a starting point!");
+			return;
+		}
+		// At least one finish
+		if (Finishes < 1) {
+			ValidationStatus = CMapType::ValidationStatus::NotValidable;
+			//L16N [MapEditor] Message explaining to the player that a track has to contain exactly one finish line block.
+			ValidabilityRequirementsMessage = _("You must place at least one finish line!");
+			return;
+		}
+	}
+
+	//Shadows should be computed
+	/*
+	if (CurrentShadowsQuality == CMapType::ShadowsQuality::NotComputed || CurrentShadowsQuality == CMapType::ShadowsQuality::VeryFast || CurrentShadowsQuality == CMapType::ShadowsQuality::Fast) {
+		ValidabilityRequirementsMessage = _("You must compute shadows!");
+		return;
+	}
+	*/
+	
+	// If the objectives times are not valid, the author must revalidate his map
+	if (!MapType::ObjectivesAreValid()) {
+		ValidationStatus = CMapType::ValidationStatus::Validable;
+		return;
+	}
+	
+	// Allow to start the validation
+	if (ValidationStatus == CMapType::ValidationStatus::NotValidable) {
+		ValidationStatus = CMapType::ValidationStatus::Validable;
+	}
+}
+
+Void SetMapScores(Integer _RunTime) {
+	declare persistent Integer RememberedTime for Map;
+	RememberedTime = _RunTime;
+	Map.TMObjective_AuthorTime = _RunTime;
+	Map.ObjectiveTextAuthor = TL::TimeToText(Map.TMObjective_AuthorTime, True);
+	Map.ObjectiveTextGold 	= TL::TimeToText(Map.TMObjective_GoldTime, True);
+	Map.ObjectiveTextSilver = TL::TimeToText(Map.TMObjective_SilverTime, True);
+	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
+}
+
+Void UpdateMapTimes() {
+	declare persistent Integer RememberedTime for Map;
+	Map.TMObjective_AuthorTime = RememberedTime;
+	Map.ObjectiveTextAuthor = TL::TimeToText(Map.TMObjective_AuthorTime, True);
+	Map.ObjectiveTextGold 	= TL::TimeToText(Map.TMObjective_GoldTime, True);
+	Map.ObjectiveTextSilver = TL::TimeToText(Map.TMObjective_SilverTime, True);
+	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
+}
+
+Void EndSoloRace(Integer _RunTime) {
+	declare persistent Integer PlayerRecordTime for Map;
+	declare persistent Text PlayerAchievedMedal for Map;
+	if (_RunTime <= Map.TMObjective_AuthorTime) {
+		PlayerAchievedMedal = "Author";
+	}
+	else if (_RunTime <= Map.TMObjective_GoldTime && _RunTime > Map.TMObjective_AuthorTime){
+		PlayerAchievedMedal = "Gold";
+	}
+	else if (_RunTime <= Map.TMObjective_SilverTime && _RunTime > Map.TMObjective_GoldTime){
+		PlayerAchievedMedal = "Silver";
+	}
+	else if (_RunTime <= Map.TMObjective_BronzeTime && _RunTime > Map.TMObjective_SilverTime){
+		PlayerAchievedMedal = "Bronze";
+	}
+	else {
+		PlayerAchievedMedal = "NoMedal";
+	}
+	if (_RunTime < PlayerRecordTime || PlayerRecordTime == 0) {
+		PlayerRecordTime = _RunTime;
+	}
+}
+
+Integer GetCountOfABlock(Text _BlockName) {
+	declare Int3[] PreBlockCoords for Map;
+	declare Integer NumberOfBlocks;
+	foreach (Block in Blocks) {
+		if (Block != Null) {
+			if (!PreBlockCoords.exists(Block.Coord) && Block.BlockModel.Name == _BlockName) {
+				NumberOfBlocks += 1;
+			}
+		}
+	}
+	return NumberOfBlocks;
+}
+
+Text PuzzlePlayUI() {
+	declare metadata Boolean MapUsesFreeBlocks for Map;
+	declare metadata Boolean MapUsesGhostBlocks for Map;
+	return """
+	<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+	<manialink version="3">	
+	<frame id="Frame_PuzzlePlayUI">
+	<frame id="Frame_PlacementSelection" hidden="1">
+	<quad pos="-140 -54" z-index="1" size="10 10" bgcolor="FFFA" halign="center" valign="center" style="UICommon64_1" substyle="BlockEditor_dark" scriptevents="1" id="Button_PlaceMode"/>
+	<quad pos="-130 -54" z-index="1" size="10 10" bgcolor="FFFA" halign="center" valign="center" style="UICommon64_1" substyle="GhostBlocks_dark" scriptevents="1" id="Button_GhostMode"/>
+	<quad pos="-120 -54" z-index="1" size="10 10" bgcolor="FFFA" halign="center" valign="center" style="UICommon64_1" substyle="FreeBlocks_dark" scriptevents="1" id="Button_FreeMode"/>
+	<quad pos="-130 -54" z-index="0" size="40 10" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="BgToolTilted" colorize="FF2" opacity="0.5"/>
+	</frame>
+	<frame id="Frame_Block1">
+	<label pos="-91 -80" z-index="2" size="20 5" text="1/1" halign="right" valign="center" textemboss="1" id="Label_BlockCount1"/>
+	<quad pos="-100 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block1Icon" scriptevents="1"/>
+	<quad pos="-100 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<frame id="Frame_Block2">
+	<label pos="-65 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount2"/>
+	<quad pos="-75 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" valign="center" id="Block2Icon" scriptevents="1" halign="center"/>
+	<quad pos="-75 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<frame id="Frame_Block3">
+	<label pos="-40 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount3"/>
+	<quad pos="-50 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block3Icon" scriptevents="1"/>
+	<quad pos="-50 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<frame id="Frame_Block4">
+	<label pos="-15 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount4"/>
+	<quad pos="-25 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block4Icon" scriptevents="1"/>
+	<quad pos="-25 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<frame id="Frame_Block5">
+	<label pos="10 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount5"/>
+	<quad pos="0 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block5Icon" scriptevents="1"/>
+	<quad pos="0 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<frame id="Frame_Block6">
+	<label pos="35 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount6"/>
+	<quad pos="25 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block6Icon" scriptevents="1"/>
+	<quad pos="25 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<frame id="Frame_Block7">
+	<label pos="60 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount7"/>
+	<quad pos="50 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block7Icon" scriptevents="1"/>
+	<quad pos="50 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<frame id="Frame_Block8">
+	<label pos="85 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount8"/>
+	<quad pos="75 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block8Icon"/>
+	<quad pos="75 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
+	</frame>
+	<quad pos="-160 -65" z-index="0" size="20 20" bgcolor="FFFA" id="Button_Quit" style="UICommon64_1" substyle="Prev_light" scriptevents="1"/>
+	<quad pos="105 -65" z-index="0" size="20 20" bgcolor="FFFA" id="Button_TestMode" style="UICommon64_1" substyle="SteeringWheel_light" scriptevents="1"/>
+	<quad pos="140 -65" z-index="0" size="20 20" bgcolor="FFFA" id="Button_Validate" style="UICommon64_1" substyle="ValidationFlagGreen" scriptevents="1"/>
+	<quad pos="0 -91" z-index="-5" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog"/>
+	</frame>	
+	<script><!--
+		main () {
+			declare Boolean CanFreeBlock = {{{MapUsesFreeBlocks}}};
+			declare Boolean CanGhostBlock = {{{MapUsesGhostBlocks}}};
+			declare CMlFrame Frame_PlacementSelection = Page.GetFirstChild("Frame_PlacementSelection") as CMlFrame;
+			declare CMlQuad Button_PlaceMode = Page.GetFirstChild("Button_PlaceMode") as CMlQuad;
+			declare CMlQuad Button_GhostMode = Page.GetFirstChild("Button_GhostMode") as CMlQuad;
+			declare CMlQuad Button_FreeMode = Page.GetFirstChild("Button_FreeMode") as CMlQuad;
+			if (CanFreeBlock || CanGhostBlock) {
+				Frame_PlacementSelection.Show();
+				if (CanFreeBlock) {
+					Button_FreeMode.Show();
+					Button_PlaceMode.StyleSelected = False;
+					Button_GhostMode.StyleSelected = False;
+					Button_FreeMode.StyleSelected = True;
+				}
+				else {
+					Button_FreeMode.Hide();
+				}
+				if (CanGhostBlock) {
+					Button_GhostMode.Show();
+					Button_PlaceMode.StyleSelected = False;
+					Button_GhostMode.StyleSelected = True;
+					Button_FreeMode.StyleSelected = False;
+				}
+				else {
+					Button_GhostMode.Hide();
+				}
+			}
+			else {
+				Frame_PlacementSelection.Hide();
+			}
+			while(True) {
+				yield;
+				foreach(Event in PendingEvents) {
+					if(Event.Type == CGameManialinkScriptEvent::Type::MouseClick)	{	
+						switch (Event.ControlId) {
+							case "Button_PlaceMode": {
+								Button_PlaceMode.StyleSelected = True;
+								Button_GhostMode.StyleSelected = False;
+								Button_FreeMode.StyleSelected = False;
+								SendCustomEvent("PlacementEvent", ["0"]);
+							}
+							case "Button_FreeMode": {
+								Button_PlaceMode.StyleSelected = False;
+								Button_GhostMode.StyleSelected = False;
+								Button_FreeMode.StyleSelected = True;
+								SendCustomEvent("PlacementEvent", ["1"]);
+							}
+							case "Button_GhostMode": {
+								Button_PlaceMode.StyleSelected = False;
+								Button_GhostMode.StyleSelected = True;
+								Button_FreeMode.StyleSelected = False;
+								SendCustomEvent("PlacementEvent", ["2"]);
+							}
+							case "Button_TestMode": {
+								SendCustomEvent("TestModeEvent", [""]);
+							}
+							case "Button_Validate": {
+								SendCustomEvent("ValidateModeEvent", [""]);
+							}
+							case "Button_Quit": {
+								SendCustomEvent("QuitPuzzleEvent", [""]);
+							}
+							case "Block1Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["0"]);
+							}
+							case "Block2Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["1"]);
+							}
+							case "Block3Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["2"]);
+							}
+							case "Block4Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["3"]);
+							}
+							case "Block5Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["4"]);
+							}
+							case "Block6Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["5"]);
+							}
+							case "Block7Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["6"]);
+							}
+							case "Block8Icon": {
+								SendCustomEvent("SelectPuzzleBlock", ["7"]);
+							}
+							default: {}
+						}
+					}
+				}
+			}
+		}
+	--></script>
+	</manialink>
+	""";
+}
+
+Void StartPuzzlePlay(Boolean _IsValidation) {
+	HideEditorInterface = True;
+	declare Ident ident;
+	declare Int3 Coord;
+	declare Int3[] FreeBlockCoords;
+	declare Boolean CueUndo;
+	declare CBlockModel[] PuzzleBlocks for Map;
+	declare metadata Text[] PuzzleBlockNames for Map;
+	declare metadata Boolean MapUsesFreeBlocks for Map;
+	declare metadata Boolean MapUsesGhostBlocks for Map;
+	declare CBlockModel BlockModel;
+	declare Boolean IsPlayingEdit;
+	declare Integer LoadedAuthorTime;
+	declare Integer NumberOfVerifiedBlocks;
+	declare Integer PrevousBlockCount;
+	declare Int3[] PreBlockCoords for Map;
+    declare Text[] PreBlockModels;
+    declare CBlock::CardinalDirections[] PreBlockDirs;
+    declare Int3[] NewBlockCoords;
+	CueUndo = False;
+	LoadedAuthorTime = Map.TMObjective_AuthorTime;
+	IsPlayingEdit = True;
+	PrevousBlockCount = 0;
+	PuzzleBlocks.clear();
+	foreach (BlockModel in BlockModels) {
+		if (PuzzleBlockNames.exists(BlockModel.Name) && !PuzzleBlocks.exists(BlockModel)) {
+			PuzzleBlocks.add(BlockModel);
+		}
+	}
+    PreBlockCoords.clear();
+    PreBlockModels.clear();
+    PreBlockDirs.clear();
+    NewBlockCoords.clear();
+    foreach (Block in Blocks) {
+        if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
+            PreBlockCoords.add(Block.Coord);
+            PreBlockModels.add(Block.BlockModel.Name);
+            PreBlockDirs.add(Block.Direction);
+        }
+    }
+	CursorBlockModel = PuzzleBlocks[0];
+	ManialinkText = PuzzlePlayUI();
+	HideOtherPlugins();
+	yield;
+	declare CMlFrame Frame_Block1 <=> (ManialinkPage.GetFirstChild("Frame_Block1") as CMlFrame);
+	declare CMlFrame Frame_Block2 <=> (ManialinkPage.GetFirstChild("Frame_Block2") as CMlFrame);
+	declare CMlFrame Frame_Block3 <=> (ManialinkPage.GetFirstChild("Frame_Block3") as CMlFrame);
+	declare CMlFrame Frame_Block4 <=> (ManialinkPage.GetFirstChild("Frame_Block4") as CMlFrame);
+	declare CMlFrame Frame_Block5 <=> (ManialinkPage.GetFirstChild("Frame_Block5") as CMlFrame);
+	declare CMlFrame Frame_Block6 <=> (ManialinkPage.GetFirstChild("Frame_Block6") as CMlFrame);
+	declare CMlFrame Frame_Block7 <=> (ManialinkPage.GetFirstChild("Frame_Block7") as CMlFrame);
+	declare CMlFrame Frame_Block8 <=> (ManialinkPage.GetFirstChild("Frame_Block8") as CMlFrame);
+	declare CMlQuad Block1Icon <=> (ManialinkPage.GetFirstChild("Block1Icon") as CMlQuad);
+	declare CMlQuad Block2Icon <=> (ManialinkPage.GetFirstChild("Block2Icon") as CMlQuad);
+	declare CMlQuad Block3Icon <=> (ManialinkPage.GetFirstChild("Block3Icon") as CMlQuad);
+	declare CMlQuad Block4Icon <=> (ManialinkPage.GetFirstChild("Block4Icon") as CMlQuad);
+	declare CMlQuad Block5Icon <=> (ManialinkPage.GetFirstChild("Block5Icon") as CMlQuad);
+	declare CMlQuad Block6Icon <=> (ManialinkPage.GetFirstChild("Block6Icon") as CMlQuad);
+	declare CMlQuad Block7Icon <=> (ManialinkPage.GetFirstChild("Block7Icon") as CMlQuad);
+	declare CMlQuad Block8Icon <=> (ManialinkPage.GetFirstChild("Block8Icon") as CMlQuad);
+	declare CMlLabel Label_BlockCount1 <=> (ManialinkPage.GetFirstChild("Label_BlockCount1") as CMlLabel);
+	declare CMlLabel Label_BlockCount2 <=> (ManialinkPage.GetFirstChild("Label_BlockCount2") as CMlLabel);
+	declare CMlLabel Label_BlockCount3 <=> (ManialinkPage.GetFirstChild("Label_BlockCount3") as CMlLabel);
+	declare CMlLabel Label_BlockCount4 <=> (ManialinkPage.GetFirstChild("Label_BlockCount4") as CMlLabel);
+	declare CMlLabel Label_BlockCount5 <=> (ManialinkPage.GetFirstChild("Label_BlockCount5") as CMlLabel);
+	declare CMlLabel Label_BlockCount6 <=> (ManialinkPage.GetFirstChild("Label_BlockCount6") as CMlLabel);
+	declare CMlLabel Label_BlockCount7 <=> (ManialinkPage.GetFirstChild("Label_BlockCount7") as CMlLabel);
+	declare CMlLabel Label_BlockCount8 <=> (ManialinkPage.GetFirstChild("Label_BlockCount8") as CMlLabel);
+	switch (PuzzleBlocks.count) {
+		case 1: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Hide();
+			Frame_Block3.Hide();
+			Frame_Block4.Hide();
+			Frame_Block5.Hide();
+			Frame_Block6.Hide();
+			Frame_Block7.Hide();
+			Frame_Block8.Hide();
+		}
+		case 2: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Block2Icon.Image = PuzzleBlocks[1].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Show();
+			Frame_Block3.Hide();
+			Frame_Block4.Hide();
+			Frame_Block5.Hide();
+			Frame_Block6.Hide();
+			Frame_Block7.Hide();
+			Frame_Block8.Hide();
+		}
+		case 3: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Block2Icon.Image = PuzzleBlocks[1].Icon;
+			Block3Icon.Image = PuzzleBlocks[2].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Show();
+			Frame_Block3.Show();
+			Frame_Block4.Hide();
+			Frame_Block5.Hide();
+			Frame_Block6.Hide();
+			Frame_Block7.Hide();
+			Frame_Block8.Hide();
+		}
+		case 4: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Block2Icon.Image = PuzzleBlocks[1].Icon;
+			Block3Icon.Image = PuzzleBlocks[2].Icon;
+			Block4Icon.Image = PuzzleBlocks[3].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Show();
+			Frame_Block3.Show();
+			Frame_Block4.Show();
+			Frame_Block5.Hide();
+			Frame_Block6.Hide();
+			Frame_Block7.Hide();
+			Frame_Block8.Hide();
+		}
+		case 5: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Block2Icon.Image = PuzzleBlocks[1].Icon;
+			Block3Icon.Image = PuzzleBlocks[2].Icon;
+			Block4Icon.Image = PuzzleBlocks[3].Icon;
+			Block5Icon.Image = PuzzleBlocks[4].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Show();
+			Frame_Block3.Show();
+			Frame_Block4.Show();
+			Frame_Block5.Show();
+			Frame_Block6.Hide();
+			Frame_Block7.Hide();
+			Frame_Block8.Hide();
+		}
+		case 6: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Block2Icon.Image = PuzzleBlocks[1].Icon;
+			Block3Icon.Image = PuzzleBlocks[2].Icon;
+			Block4Icon.Image = PuzzleBlocks[3].Icon;
+			Block5Icon.Image = PuzzleBlocks[4].Icon;
+			Block6Icon.Image = PuzzleBlocks[5].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Show();
+			Frame_Block3.Show();
+			Frame_Block4.Show();
+			Frame_Block5.Show();
+			Frame_Block6.Show();
+			Frame_Block7.Hide();
+			Frame_Block8.Hide();
+		}
+		case 7: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Block2Icon.Image = PuzzleBlocks[1].Icon;
+			Block3Icon.Image = PuzzleBlocks[2].Icon;
+			Block4Icon.Image = PuzzleBlocks[3].Icon;
+			Block5Icon.Image = PuzzleBlocks[4].Icon;
+			Block6Icon.Image = PuzzleBlocks[5].Icon;
+			Block7Icon.Image = PuzzleBlocks[6].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Show();
+			Frame_Block3.Show();
+			Frame_Block4.Show();
+			Frame_Block5.Show();
+			Frame_Block6.Show();
+			Frame_Block7.Show();
+			Frame_Block8.Hide();
+		}
+		case 8: {
+			Block1Icon.Image = PuzzleBlocks[0].Icon;
+			Block2Icon.Image = PuzzleBlocks[1].Icon;
+			Block3Icon.Image = PuzzleBlocks[2].Icon;
+			Block4Icon.Image = PuzzleBlocks[3].Icon;
+			Block5Icon.Image = PuzzleBlocks[4].Icon;
+			Block6Icon.Image = PuzzleBlocks[5].Icon;
+			Block7Icon.Image = PuzzleBlocks[6].Icon;
+			Block8Icon.Image = PuzzleBlocks[7].Icon;
+			Frame_Block1.Show();
+			Frame_Block2.Show();
+			Frame_Block3.Show();
+			Frame_Block4.Show();
+			Frame_Block5.Show();
+			Frame_Block6.Show();
+			Frame_Block7.Show();
+			Frame_Block8.Show();
+		}
+		default: {}
+	}
+	if (PuzzleBlocks.count >= 1) {
+		Label_BlockCount1.Value = GetCountOfABlock(PuzzleBlocks[0].Name) ^ "/" ^ PuzzleBlocks[0].InterfaceNumber;
+	}
+	if (PuzzleBlocks.count >= 2) {
+		Label_BlockCount2.Value = GetCountOfABlock(PuzzleBlocks[1].Name) ^ "/" ^ PuzzleBlocks[1].InterfaceNumber;
+	}
+	if (PuzzleBlocks.count >= 3) {
+		Label_BlockCount3.Value = GetCountOfABlock(PuzzleBlocks[2].Name) ^ "/" ^ PuzzleBlocks[2].InterfaceNumber;
+	}
+	if (PuzzleBlocks.count >= 4) {
+		Label_BlockCount4.Value = GetCountOfABlock(PuzzleBlocks[3].Name) ^ "/" ^ PuzzleBlocks[3].InterfaceNumber;
+	}
+	if (PuzzleBlocks.count >= 5) {
+		Label_BlockCount5.Value = GetCountOfABlock(PuzzleBlocks[4].Name) ^ "/" ^ PuzzleBlocks[4].InterfaceNumber;
+	}
+	if (PuzzleBlocks.count >= 6) {
+		Label_BlockCount6.Value = GetCountOfABlock(PuzzleBlocks[5].Name) ^ "/" ^ PuzzleBlocks[5].InterfaceNumber;
+	}
+	if (PuzzleBlocks.count >= 7) {
+		Label_BlockCount7.Value = GetCountOfABlock(PuzzleBlocks[6].Name) ^ "/" ^ PuzzleBlocks[6].InterfaceNumber;
+	}
+	if (PuzzleBlocks.count >= 8) {
+		Label_BlockCount8.Value = GetCountOfABlock(PuzzleBlocks[7].Name) ^ "/" ^ PuzzleBlocks[7].InterfaceNumber;
+	}
+	PrevousBlockCount = Blocks.count;
+	BlockStockMode = False;
+	PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+	while (IsPlayingEdit) {
+		yield;
+		if (ValidationStatus != CMapType::ValidationStatus::Validated || ValidationStatus != CMapType::ValidationStatus::Validable) {
+			ValidationStatus = CMapType::ValidationStatus::Validable;
+		}
+		if (PlaceMode != CMapEditorPlugin::PlaceMode::Block) {
+			switch (PlaceMode) {
+				case CMapEditorPlugin::PlaceMode::Test: {
+				}
+				case CMapEditorPlugin::PlaceMode::FreeBlock: {
+					if (!MapUsesFreeBlocks) {
+						PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+					}
+				}
+				case CMapEditorPlugin::PlaceMode::GhostBlock: {
+					if (!MapUsesGhostBlocks) {
+						PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+					}
+				}
+				default: {
+					PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+				}
+			}
+		}
+		if (!PuzzleBlocks.exists(CursorBlockModel)) {
+			if (CursorBlockModel != Null) {
+				CursorBlockModel = PuzzleBlocks[0];
+			}
+		}
+		foreach (Event in PendingEvents) {
+			switch(Event.Type) {
+				case CMapEditorPluginEvent::Type::MapModified: {
+					Map.TMObjective_AuthorTime = LoadedAuthorTime;
+					UpdateMapTimes();
+					NewBlockCoords.clear();
+					CustomSelectionCoords.clear();
+					foreach (Block in Blocks) {
+						if (Block != Null) {
+							if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
+								NewBlockCoords.add(Block.Coord);
+								if (!PreBlockCoords.exists(Block.Coord)) {
+									log(Block.Coord);
+									if (Block.Coord == <-1, 0, -1>) {
+										if (!MapUsesFreeBlocks) {
+											CueUndo = True;
+										}
+										else {
+											FreeBlockCoords.add(Cursor.Coord);
+										}
+									}
+									if (Block.IsGhostBlock() && !MapUsesGhostBlocks) {
+										CueUndo = True;
+									}
+									foreach (unit in Block.BlockUnits) {
+										CustomSelectionCoords.add(Block.Coord + unit.Offset);
+									}
+								}
+								if (PreBlockCoords.exists(Block.Coord)) {
+									if (PreBlockModels[PreBlockCoords.keyof(Block.Coord)] != Block.BlockModel.Name || PreBlockDirs[PreBlockCoords.keyof(Block.Coord)] != Block.Direction) {
+										CueUndo = True;
+									}
+								}
+							}
+						}
+					}
+					foreach (Coord in PreBlockCoords) {
+						if (Coord != <0, 0, 0>) {
+							if (!NewBlockCoords.exists(Coord)) {
+								CueUndo = True;
+							}
+						}
+					}
+					foreach (Blockmodel in PuzzleBlocks) {
+						if (GetCountOfABlock(Blockmodel.Name) > Blockmodel.InterfaceNumber) {
+							CueUndo = True;
+						}
+					}
+					if (CueUndo) {
+						Undo();
+					}
+					CueUndo = False;
+					if (PuzzleBlocks.count >= 1) {
+						Label_BlockCount1.Value = GetCountOfABlock(PuzzleBlocks[0].Name) ^ "/" ^ PuzzleBlocks[0].InterfaceNumber;
+					}
+					if (PuzzleBlocks.count >= 2) {
+						Label_BlockCount2.Value = GetCountOfABlock(PuzzleBlocks[1].Name) ^ "/" ^ PuzzleBlocks[1].InterfaceNumber;
+					}
+					if (PuzzleBlocks.count >= 3) {
+						Label_BlockCount3.Value = GetCountOfABlock(PuzzleBlocks[2].Name) ^ "/" ^ PuzzleBlocks[2].InterfaceNumber;
+					}
+					if (PuzzleBlocks.count >= 4) {
+						Label_BlockCount4.Value = GetCountOfABlock(PuzzleBlocks[3].Name) ^ "/" ^ PuzzleBlocks[3].InterfaceNumber;
+					}
+					if (PuzzleBlocks.count >= 5) {
+						Label_BlockCount5.Value = GetCountOfABlock(PuzzleBlocks[4].Name) ^ "/" ^ PuzzleBlocks[4].InterfaceNumber;
+					}
+					if (PuzzleBlocks.count >= 6) {
+						Label_BlockCount6.Value = GetCountOfABlock(PuzzleBlocks[5].Name) ^ "/" ^ PuzzleBlocks[5].InterfaceNumber;
+					}
+					if (PuzzleBlocks.count >= 7) {
+						Label_BlockCount7.Value = GetCountOfABlock(PuzzleBlocks[6].Name) ^ "/" ^ PuzzleBlocks[6].InterfaceNumber;
+					}
+					if (PuzzleBlocks.count >= 8) {
+						Label_BlockCount8.Value = GetCountOfABlock(PuzzleBlocks[7].Name) ^ "/" ^ PuzzleBlocks[7].InterfaceNumber;
+					}
+				} 
+				case CMapEditorPluginEvent::Type::LayerCustomEvent: {
+					switch (Event.CustomEventType) {
+						case "SelectPuzzleBlock": {
+							if (PlaceMode == CMapEditorPlugin::PlaceMode::Test) {
+								PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+							}
+							CursorBlockModel = PuzzleBlocks[TL::ToInteger(Event.CustomEventData[0])];
+						}
+						case "PlacementEvent": {
+							switch (Event.CustomEventData[0]) {
+								case "0": {
+									PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+								}
+								case "1": {
+									PlaceMode = CMapEditorPlugin::PlaceMode::FreeBlock;
+								}
+								case "2": {
+									PlaceMode = CMapEditorPlugin::PlaceMode::GhostBlock;
+								}
+							}
+						}
+						case "TestModeEvent": {
+							PlaceMode = CMapEditorPlugin::PlaceMode::Test;
+						}
+						case "ValidateModeEvent": {
+							declare Integer BoolToInt;
+							if (_IsValidation) {
+								BoolToInt = 1;
+							}
+							else {
+								BoolToInt = 0;
+							}
+							TestMapWithMode("Modes/Trackmania/Puzzle/PuzzleSolo.Script.txt", "<root><setting name=\"S_IsValidation\" value=\""^ BoolToInt ^ "\" type=\"boolean\"/></root>");
+						}
+						case "QuitPuzzleEvent": {
+							IsPlayingEdit = False;
+						}
+						default: {}
+					}
+				}
+			}
+		}
+		
+	}
+	if (!_IsValidation) {
+		Quit();
+	}
+	else {
+		//remove Blocks and Ghost Blocks
+		for (i, 0, Blocks.count - 1) {
+			declare CBlock TempBlock;
+			TempBlock = Blocks[i];
+			if (TempBlock != Null) {
+				if (TempBlock.BlockModel.Name != "Grass" && !TempBlock.BlockModel.IsClip) {
+					if (!PreBlockCoords.exists(TempBlock.Coord)) {
+						if (TempBlock.IsGhostBlock()) {
+							RemoveGhostBlock(TempBlock.BlockModel, TempBlock.Coord, TempBlock.Dir);
+						}
+						else if (TempBlock.Coord == <-1, 0, -1>) {
+						} 
+						else {
+							RemoveBlock(TempBlock.BlockModel, TempBlock.Coord, TempBlock.Dir);
+						}
+					}
+				}
+			}
+		}
+		//Remove Free Blocks
+		if (FreeBlockCoords.count > 0) {
+			CopyPaste_ResetSelection();
+			foreach (Coord in FreeBlockCoords) {
+				CopyPaste_AddOrSubSelection(Coord + <0, -1, 0>, Coord + <0, 1, 0>);
+				//CopyPaste_SetSelectionPhaseOffset(CMapEditorPlugin::PhaseOffset::One8th);
+				CopyPaste_Remove();
+			}
+			CopyPaste_ResetSelection();
+		}
+		FreeBlockCoords.clear();
+		CustomSelectionCoords.clear();
+		UpdateMapTimes();
+		ManialinkText = "";
+		HideEditorInterface = False;
+		ShowOtherPlugins();
+	}
+	
+}
+
+Void CustomObjectivesMenu() {
+HideEditorInterface = True;
+declare metadata Boolean IsLocked for Map;
+declare metadata Boolean MapUsesFreeBlocks for Map;
+declare metadata Boolean MapUsesGhostBlocks for Map;
+declare Boolean IsLockedTemp;
+declare Boolean MapUsesFreeBlocksTemp;
+declare Boolean MapUsesGhostBlocksTemp;
+IsLockedTemp = IsLocked;
+MapUsesFreeBlocksTemp = MapUsesFreeBlocks;
+MapUsesGhostBlocksTemp = MapUsesGhostBlocks;
+declare Integer TempGoldScore;
+declare Integer TempSilverScore;
+declare Integer TempBronzeScore;
+declare Integer TempTimeLimit;
+ManialinkText = 
+"""
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<manialink version="3">
+<label pos="20 22" z-index="0" size="40 5" text="$oExperimental Features" halign="center" valign="center" textemboss="1" textsize="2"/>
+<label pos="25 -2" z-index="0" size="40 5" text="$oEditing locked?" halign="center" valign="center" textemboss="1"/>
+<quad pos="-40 17" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalNadeo" halign="center" valign="center"/>
+<quad pos="-40 6" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalGold" halign="center" valign="center"/>
+<quad pos="-40 -5" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalSilver" halign="center" valign="center"/>
+<quad pos="-40 -16" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalBronze" halign="center" valign="center"/>
+<label id="AuthorScore" pos="-20 17" z-index="0" size="29 5" text="{{{Map.TMObjective_AuthorTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="D9D9D9FF"/>
+<entry id="CustomGoldScore" pos="-20 6" z-index="0" size="29 5" default="{{{Map.TMObjective_GoldTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
+<entry id="CustomSilverScore" pos="-20 -5" z-index="0" size="29 5" default="{{{Map.TMObjective_SilverTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
+<entry id="CustomBronzeScore" pos="-20 -16" z-index="0" size="29 5" default="{{{Map.TMObjective_BronzeTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
+<label  pos="20 17" z-index="0" size="40 5" text="$o$FFFPlayer can GhostBlock." style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="D9D9D9FF" textemboss="1" textsize="4"/>
+<label  pos="20 10" z-index="0" size="40 5" text="$o$FFFPlayer can FreeBlock." style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="D9D9D9FF" textemboss="1" textsize="4"/>
+<quad pos="44 16" z-index="0" size="8 8" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditGhost" scriptevents="1"/>
+<quad pos="44 9" z-index="0" size="8 8" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditFree" scriptevents="1"/>
+<quad pos="10 -11" z-index="0" size="10 10" bgcolor="FFFA" style="Icons128x128_1" substyle="Load" halign="center" valign="center"/>
+<quad pos="20 -11" z-index="0" size="10 10" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditLocker" scriptevents="1"/>
+<quad pos="0 0" z-index="0" size="100 50" bgcolor="FFFA" style="Bgs1InRace" substyle="BgHealthBar" halign="center" valign="center"/>
+<label id="ExitButton" pos="25 -35" z-index="0" size="10 5" text="Exit" style="CardButtonMediumL" halign="center" valign="center" scriptevents="1"/>
+<label id="ApplyButton" pos="-25 -35" z-index="0" size="10 5" text="Apply" style="CardButtonMediumL" halign="center" valign="center" scriptevents="1"/>
+<quad pos="0 -35" z-index="0" size="100 15" bgcolor="FFFA" style="Bgs1InRace" substyle="BgHealthBar" halign="center" valign="center"/>
+<label pos="0 35" z-index="0" size="100 10" text="Set Objectives" halign="center" valign="center2" textfont="Gotham/Gotham-Bold" textsize="5" textemboss="1"/>
+<quad pos="0 35" z-index="0" size="110 15" bgcolor="FFFA" style="Bgs1InRace" substyle="BgTitle3_5" opacity="1" valign="center" halign="center"/>
+<quad pos="0 0" z-index="0" size="500 500" bgcolor="3B3B3BAA" halign="center" valign="center" scriptevents="1"/>				
+<script><!--
+main () {
+	declare ButtonClicked for Page = "";
+	declare CMlQuad Button_EditLocker = (Page.GetFirstChild("Button_EditLocker") as CMlQuad);
+	declare CMlQuad Button_EditGhost = (Page.GetFirstChild("Button_EditGhost") as CMlQuad);
+	declare CMlQuad Button_EditFree = (Page.GetFirstChild("Button_EditFree") as CMlQuad);
+	declare Boolean IsLocked = {{{IsLocked}}};
+	declare Boolean MapUsesFreeBlocks = {{{MapUsesFreeBlocks}}};
+	declare Boolean MapUsesGhostBlocks = {{{MapUsesGhostBlocks}}};
+	while(True) {
+		yield;
+		//log(IsLocked);
+		if (IsLocked) {
+			Button_EditLocker.StyleSelected = True;
+		}
+		else {
+			Button_EditLocker.StyleSelected = False;
+		}
+		if (MapUsesGhostBlocks) {
+			Button_EditGhost.StyleSelected = True;
+		}
+		else {
+			Button_EditGhost.StyleSelected = False;
+		}
+		if (MapUsesFreeBlocks) {
+			Button_EditFree.StyleSelected = True;
+		}
+		else {
+			Button_EditFree.StyleSelected = False;
+		}
+		foreach(Event in PendingEvents) {
+			if(Event.Type == CGameManialinkScriptEvent::Type::MouseClick)	{	
+				if (ButtonClicked == "") ButtonClicked = Event.ControlId;
+				switch (Event.ControlId) {
+					case "Button_EditLocker": {
+						IsLocked = !IsLocked;
+					}
+					case "Button_EditGhost": {
+						MapUsesGhostBlocks = !MapUsesGhostBlocks;
+					}
+					case "Button_EditFree": {
+						MapUsesFreeBlocks = !MapUsesFreeBlocks;
+					}
+				}
+			}
+		}
+	}
+}
+--></script>
+</manialink>
+""";
+while(True) 	{
+	declare ButtonClicked for ManialinkPage = "" ;
+	ButtonClicked = "";
+	wait(ButtonClicked != "");
+	declare Page <=> ManialinkPage;
+	wait(Page != Null);
+	TempGoldScore = TL::ToInteger((Page.GetFirstChild("CustomGoldScore") as CMlEntry).Value);
+	TempSilverScore = TL::ToInteger((Page.GetFirstChild("CustomSilverScore") as CMlEntry).Value);
+	TempBronzeScore = TL::ToInteger((Page.GetFirstChild("CustomBronzeScore") as CMlEntry).Value);
+	if (ButtonClicked == "ExitButton") break;
+	switch (ButtonClicked) {
+		case "Button_EditLocker": {
+			IsLockedTemp = !IsLockedTemp;
+		}
+		case "Button_EditGhost": {
+			MapUsesGhostBlocksTemp = !MapUsesGhostBlocksTemp;
+		}
+		case "Button_EditFree": {
+			MapUsesFreeBlocksTemp = !MapUsesFreeBlocksTemp;
+		}
+	}
+	if (ButtonClicked == "ApplyButton") {
+		IsLocked = IsLockedTemp;
+		MapUsesGhostBlocks = MapUsesGhostBlocksTemp;
+		MapUsesFreeBlocks = MapUsesFreeBlocksTemp;
+		Map.TMObjective_GoldTime = TempGoldScore;
+		Map.TMObjective_SilverTime = TempSilverScore;
+		Map.TMObjective_BronzeTime = TempBronzeScore;
+		Map.ObjectiveTextAuthor = TL::TimeToText(Map.TMObjective_AuthorTime, True);
+		Map.ObjectiveTextGold 	= TL::TimeToText(Map.TMObjective_GoldTime, True);
+		Map.ObjectiveTextSilver = TL::TimeToText(Map.TMObjective_SilverTime, True);
+		Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
+		break;
+	}
+}
+ManialinkText = "";
+HideEditorInterface = False;
+}
+
+Text PuzzleCreationUI() {
+	return """
+	<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+	<manialink version="3">
+	<frame id="PlaySoloPuzzleButton" pos="0 140">
+	<label pos="130 -60" z-index="0" size="20 5" text="Play Puzzle" style="CardButtonMedium" scriptevents="1" halign="center" valign="center" id="Button_PlaySoloPuzzle"/>
+	<label pos="130 -72" z-index="0" size="60 10" text="Clicking this will force you out the editor!" halign="center" valign="center" textemboss="1" textcolor="FF5C5CFF" textfont="Gotham/Gotham-Bold" autonewline="1"/>
+	<quad pos="130 -60" z-index="0" size="45 10" bgcolor="FFFA" halign="center" valign="center"/>
+	</frame>
+	<script><!--
+	main () {
+		while(True) {
+			yield;
+			foreach(Event in PendingEvents) {
+				if(Event.Type == CGameManialinkScriptEvent::Type::MouseClick)	{	
+					switch (Event.ControlId) {
+						case "Button_PlaySoloPuzzle": {
+							SendCustomEvent("PlaySoloPuzzle", [""]);
+						}
+						default: {}
+					}
+				}
+			}
+		}
+	}
+	--></script>
+	</manialink>
+	""";
+}
+
+// ---------------------------------- //
+// Main
+// ---------------------------------- //
+main() {
+    +++MapTypeStart+++
+	CopyPaste_ResetSelection();
+	CopyPaste_AddOrSubSelection(<29, 29, 33>, <29, 29, 33>);
+	CopyPaste_Remove();
+	declare persistent Integer RememberedTime for Map;
+	declare Boolean IsPlaying for Map;
+	declare metadata Text[] PuzzleBlockNames for Map;
+	declare metadata Boolean IsLocked for Map = True;
+	declare CBlockModel BlockModel;
+	RememberedTime = Map.TMObjective_AuthorTime;
+	ManialinkText = EditorPuzzleToggleUI();
+	ShowOtherPlugins();
+	if (LocalUser.Login != Map.AuthorLogin && IsLocked && ValidationStatus == CMapType::ValidationStatus::Validated) {
+		IsPlaying = True;
+	}
+	UpdateValidability();
+	RemoveAllObjects();
+    while(True) {
+		yield;
+        +++MapTypeLoop+++
+		if (IsPlaying == False) {
+			//EditLoop
+			BlockStockMode = True;
+			if (PlaceMode == CSmMapType::PlaceMode::FreeBlock || PlaceMode == CSmMapType::PlaceMode::GhostBlock || PlaceMode == CSmMapType::PlaceMode::Item) {
+				PlaceMode = CSmMapType::PlaceMode::Block;
+			}
+			//Save the used blocks into an array, have a maximum of 8.
+			foreach (BlockModel in BlockModels) {
+				if (BlockModel.InterfaceNumber > 0) {
+					if (!PuzzleBlockNames.exists(BlockModel.Name)) {
+						if (PuzzleBlockNames.count >= 8) {
+							BlockModel.InterfaceNumber = 0;
+							Dialog_Message("You can not assign more than 8 different blocks to a track!");
+						}
+						else {
+							PuzzleBlockNames.add(BlockModel.Name);
+						}
+					}
+				} else if (PuzzleBlockNames.exists(BlockModel.Name)) {
+					PuzzleBlockNames.remove(BlockModel.Name);
+				}
+			}
+			if (Map.TMObjective_AuthorTime != -1 && ValidationStatus == CMapType::ValidationStatus::Validable) {
+				ValidationStatus = CMapType::ValidationStatus::Validated;
+			}
+			if (ValidationStatus == CMapType::ValidationStatus::Validated) {
+				ManialinkText = PuzzleCreationUI();
+			}
+			else {
+				ManialinkText = "";
+			}
+			// Manage events
+			foreach(Event in PendingEvents) {
+				switch(Event.Type) {
+					case CMapEditorPluginEvent::Type::MapModified: {
+						yield;
+
+						if (Map.TMObjective_AuthorTime == -1) {
+							RememberedTime = -1;
+							Map.ObjectiveTextAuthor = "";
+							Map.ObjectiveTextBronze = "";
+							Map.ObjectiveTextGold = "";
+							Map.ObjectiveTextSilver = "";
+						}
+						if (BlockStockMode == True) {
+							UpdateValidability();
+						}
+						else {
+							ValidationStatus = CMapType::ValidationStatus::Validable;
+						}
+					} 
+					case CMapEditorPluginEvent::Type::StartValidation: {
+						//StartValidation(True);
+						StartPuzzlePlay(True);
+					} 
+					case CMapEditorPluginEvent::Type::EditObjectives: {
+						CustomObjectivesMenu();
+						//DisplayDefaultSetObjectivesDialog();
+					}
+					case CMapEditorPluginEvent::Type::LayerCustomEvent: {
+						switch (Event.CustomEventType) {
+							case "PlaySoloPuzzle": {
+								//SaveMap(Map.MapInfo.FileName);
+								StartPuzzlePlay(False);
+							}
+						}
+					}
+				}
+			}
+		}
+		else {
+			//PlayLoop
+			StartPuzzlePlay(False);
+		}
+	}			
+    +++MapTypeEnd+++
+	BlockStockMode = False;
+    UILayerDestroyAll();
+}
