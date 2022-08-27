@@ -406,172 +406,33 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 	ManialinkText = PuzzlePlayUI();
 	HideOtherPlugins();
 	yield;
-	declare CMlFrame Frame_Block1 <=> (ManialinkPage.GetFirstChild("Frame_Block1") as CMlFrame);
-	declare CMlFrame Frame_Block2 <=> (ManialinkPage.GetFirstChild("Frame_Block2") as CMlFrame);
-	declare CMlFrame Frame_Block3 <=> (ManialinkPage.GetFirstChild("Frame_Block3") as CMlFrame);
-	declare CMlFrame Frame_Block4 <=> (ManialinkPage.GetFirstChild("Frame_Block4") as CMlFrame);
-	declare CMlFrame Frame_Block5 <=> (ManialinkPage.GetFirstChild("Frame_Block5") as CMlFrame);
-	declare CMlFrame Frame_Block6 <=> (ManialinkPage.GetFirstChild("Frame_Block6") as CMlFrame);
-	declare CMlFrame Frame_Block7 <=> (ManialinkPage.GetFirstChild("Frame_Block7") as CMlFrame);
-	declare CMlFrame Frame_Block8 <=> (ManialinkPage.GetFirstChild("Frame_Block8") as CMlFrame);
-	declare CMlQuad Block1Icon <=> (ManialinkPage.GetFirstChild("Block1Icon") as CMlQuad);
-	declare CMlQuad Block2Icon <=> (ManialinkPage.GetFirstChild("Block2Icon") as CMlQuad);
-	declare CMlQuad Block3Icon <=> (ManialinkPage.GetFirstChild("Block3Icon") as CMlQuad);
-	declare CMlQuad Block4Icon <=> (ManialinkPage.GetFirstChild("Block4Icon") as CMlQuad);
-	declare CMlQuad Block5Icon <=> (ManialinkPage.GetFirstChild("Block5Icon") as CMlQuad);
-	declare CMlQuad Block6Icon <=> (ManialinkPage.GetFirstChild("Block6Icon") as CMlQuad);
-	declare CMlQuad Block7Icon <=> (ManialinkPage.GetFirstChild("Block7Icon") as CMlQuad);
-	declare CMlQuad Block8Icon <=> (ManialinkPage.GetFirstChild("Block8Icon") as CMlQuad);
-	declare CMlLabel Label_BlockCount1 <=> (ManialinkPage.GetFirstChild("Label_BlockCount1") as CMlLabel);
-	declare CMlLabel Label_BlockCount2 <=> (ManialinkPage.GetFirstChild("Label_BlockCount2") as CMlLabel);
-	declare CMlLabel Label_BlockCount3 <=> (ManialinkPage.GetFirstChild("Label_BlockCount3") as CMlLabel);
-	declare CMlLabel Label_BlockCount4 <=> (ManialinkPage.GetFirstChild("Label_BlockCount4") as CMlLabel);
-	declare CMlLabel Label_BlockCount5 <=> (ManialinkPage.GetFirstChild("Label_BlockCount5") as CMlLabel);
-	declare CMlLabel Label_BlockCount6 <=> (ManialinkPage.GetFirstChild("Label_BlockCount6") as CMlLabel);
-	declare CMlLabel Label_BlockCount7 <=> (ManialinkPage.GetFirstChild("Label_BlockCount7") as CMlLabel);
-	declare CMlLabel Label_BlockCount8 <=> (ManialinkPage.GetFirstChild("Label_BlockCount8") as CMlLabel);
-	switch (PuzzleBlocks.count) {
-		case 1: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Hide();
-			Frame_Block3.Hide();
-			Frame_Block4.Hide();
-			Frame_Block5.Hide();
-			Frame_Block6.Hide();
-			Frame_Block7.Hide();
-			Frame_Block8.Hide();
+
+	//Fill Block Inventory
+	declare CMlFrame[] BlockFrames;
+	declare CMlControl Control;
+	BlockFrames.clear();
+	foreach (Control in (ManialinkPage.GetFirstChild("Frame_PuzzlePlayUI") as CMlFrame).Controls) {
+		if (TL::Find("Frame_Block", Control.ControlId, False, False)) {
+			BlockFrames.add((Control as CMlFrame));
 		}
-		case 2: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Block2Icon.Image = PuzzleBlocks[1].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Show();
-			Frame_Block3.Hide();
-			Frame_Block4.Hide();
-			Frame_Block5.Hide();
-			Frame_Block6.Hide();
-			Frame_Block7.Hide();
-			Frame_Block8.Hide();
+	}
+	for (i, 0, BlockFrames.count - 1) {
+		if (i < PuzzleBlocks.count) {
+			foreach (Control in BlockFrames[i].Controls) {
+				if (TL::Find("Icon", Control.ControlId, False, False)) {
+					declare CMlQuad BlockIcon <=> (Control as CMlQuad);
+					BlockIcon.Image = PuzzleBlocks[i].Icon;
+				}
+				else if (TL::Find("BlockCount", Control.ControlId, False, False)) {
+					declare CMlLabel BlockCount <=> (Control as CMlLabel);
+					BlockCount.Value = GetCountOfABlock(PuzzleBlocks[i].Name) ^ "/" ^ PuzzleBlocks[i].InterfaceNumber;
+				}
+			}
+			BlockFrames[i].Show();
 		}
-		case 3: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Block2Icon.Image = PuzzleBlocks[1].Icon;
-			Block3Icon.Image = PuzzleBlocks[2].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Show();
-			Frame_Block3.Show();
-			Frame_Block4.Hide();
-			Frame_Block5.Hide();
-			Frame_Block6.Hide();
-			Frame_Block7.Hide();
-			Frame_Block8.Hide();
+		else {
+			BlockFrames[i].Hide();
 		}
-		case 4: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Block2Icon.Image = PuzzleBlocks[1].Icon;
-			Block3Icon.Image = PuzzleBlocks[2].Icon;
-			Block4Icon.Image = PuzzleBlocks[3].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Show();
-			Frame_Block3.Show();
-			Frame_Block4.Show();
-			Frame_Block5.Hide();
-			Frame_Block6.Hide();
-			Frame_Block7.Hide();
-			Frame_Block8.Hide();
-		}
-		case 5: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Block2Icon.Image = PuzzleBlocks[1].Icon;
-			Block3Icon.Image = PuzzleBlocks[2].Icon;
-			Block4Icon.Image = PuzzleBlocks[3].Icon;
-			Block5Icon.Image = PuzzleBlocks[4].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Show();
-			Frame_Block3.Show();
-			Frame_Block4.Show();
-			Frame_Block5.Show();
-			Frame_Block6.Hide();
-			Frame_Block7.Hide();
-			Frame_Block8.Hide();
-		}
-		case 6: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Block2Icon.Image = PuzzleBlocks[1].Icon;
-			Block3Icon.Image = PuzzleBlocks[2].Icon;
-			Block4Icon.Image = PuzzleBlocks[3].Icon;
-			Block5Icon.Image = PuzzleBlocks[4].Icon;
-			Block6Icon.Image = PuzzleBlocks[5].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Show();
-			Frame_Block3.Show();
-			Frame_Block4.Show();
-			Frame_Block5.Show();
-			Frame_Block6.Show();
-			Frame_Block7.Hide();
-			Frame_Block8.Hide();
-		}
-		case 7: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Block2Icon.Image = PuzzleBlocks[1].Icon;
-			Block3Icon.Image = PuzzleBlocks[2].Icon;
-			Block4Icon.Image = PuzzleBlocks[3].Icon;
-			Block5Icon.Image = PuzzleBlocks[4].Icon;
-			Block6Icon.Image = PuzzleBlocks[5].Icon;
-			Block7Icon.Image = PuzzleBlocks[6].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Show();
-			Frame_Block3.Show();
-			Frame_Block4.Show();
-			Frame_Block5.Show();
-			Frame_Block6.Show();
-			Frame_Block7.Show();
-			Frame_Block8.Hide();
-		}
-		case 8: {
-			Block1Icon.Image = PuzzleBlocks[0].Icon;
-			Block2Icon.Image = PuzzleBlocks[1].Icon;
-			Block3Icon.Image = PuzzleBlocks[2].Icon;
-			Block4Icon.Image = PuzzleBlocks[3].Icon;
-			Block5Icon.Image = PuzzleBlocks[4].Icon;
-			Block6Icon.Image = PuzzleBlocks[5].Icon;
-			Block7Icon.Image = PuzzleBlocks[6].Icon;
-			Block8Icon.Image = PuzzleBlocks[7].Icon;
-			Frame_Block1.Show();
-			Frame_Block2.Show();
-			Frame_Block3.Show();
-			Frame_Block4.Show();
-			Frame_Block5.Show();
-			Frame_Block6.Show();
-			Frame_Block7.Show();
-			Frame_Block8.Show();
-		}
-		default: {}
-	}
-	if (PuzzleBlocks.count >= 1) {
-		Label_BlockCount1.Value = GetCountOfABlock(PuzzleBlocks[0].Name) ^ "/" ^ PuzzleBlocks[0].InterfaceNumber;
-	}
-	if (PuzzleBlocks.count >= 2) {
-		Label_BlockCount2.Value = GetCountOfABlock(PuzzleBlocks[1].Name) ^ "/" ^ PuzzleBlocks[1].InterfaceNumber;
-	}
-	if (PuzzleBlocks.count >= 3) {
-		Label_BlockCount3.Value = GetCountOfABlock(PuzzleBlocks[2].Name) ^ "/" ^ PuzzleBlocks[2].InterfaceNumber;
-	}
-	if (PuzzleBlocks.count >= 4) {
-		Label_BlockCount4.Value = GetCountOfABlock(PuzzleBlocks[3].Name) ^ "/" ^ PuzzleBlocks[3].InterfaceNumber;
-	}
-	if (PuzzleBlocks.count >= 5) {
-		Label_BlockCount5.Value = GetCountOfABlock(PuzzleBlocks[4].Name) ^ "/" ^ PuzzleBlocks[4].InterfaceNumber;
-	}
-	if (PuzzleBlocks.count >= 6) {
-		Label_BlockCount6.Value = GetCountOfABlock(PuzzleBlocks[5].Name) ^ "/" ^ PuzzleBlocks[5].InterfaceNumber;
-	}
-	if (PuzzleBlocks.count >= 7) {
-		Label_BlockCount7.Value = GetCountOfABlock(PuzzleBlocks[6].Name) ^ "/" ^ PuzzleBlocks[6].InterfaceNumber;
-	}
-	if (PuzzleBlocks.count >= 8) {
-		Label_BlockCount8.Value = GetCountOfABlock(PuzzleBlocks[7].Name) ^ "/" ^ PuzzleBlocks[7].InterfaceNumber;
 	}
 	PrevousBlockCount = Blocks.count;
 	BlockStockMode = False;
@@ -657,29 +518,13 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						Undo();
 					}
 					CueUndo = False;
-					if (PuzzleBlocks.count >= 1) {
-						Label_BlockCount1.Value = GetCountOfABlock(PuzzleBlocks[0].Name) ^ "/" ^ PuzzleBlocks[0].InterfaceNumber;
-					}
-					if (PuzzleBlocks.count >= 2) {
-						Label_BlockCount2.Value = GetCountOfABlock(PuzzleBlocks[1].Name) ^ "/" ^ PuzzleBlocks[1].InterfaceNumber;
-					}
-					if (PuzzleBlocks.count >= 3) {
-						Label_BlockCount3.Value = GetCountOfABlock(PuzzleBlocks[2].Name) ^ "/" ^ PuzzleBlocks[2].InterfaceNumber;
-					}
-					if (PuzzleBlocks.count >= 4) {
-						Label_BlockCount4.Value = GetCountOfABlock(PuzzleBlocks[3].Name) ^ "/" ^ PuzzleBlocks[3].InterfaceNumber;
-					}
-					if (PuzzleBlocks.count >= 5) {
-						Label_BlockCount5.Value = GetCountOfABlock(PuzzleBlocks[4].Name) ^ "/" ^ PuzzleBlocks[4].InterfaceNumber;
-					}
-					if (PuzzleBlocks.count >= 6) {
-						Label_BlockCount6.Value = GetCountOfABlock(PuzzleBlocks[5].Name) ^ "/" ^ PuzzleBlocks[5].InterfaceNumber;
-					}
-					if (PuzzleBlocks.count >= 7) {
-						Label_BlockCount7.Value = GetCountOfABlock(PuzzleBlocks[6].Name) ^ "/" ^ PuzzleBlocks[6].InterfaceNumber;
-					}
-					if (PuzzleBlocks.count >= 8) {
-						Label_BlockCount8.Value = GetCountOfABlock(PuzzleBlocks[7].Name) ^ "/" ^ PuzzleBlocks[7].InterfaceNumber;
+					for (i, 0, PuzzleBlocks.count - 1) {
+						foreach (Control in BlockFrames[i].Controls) {
+							if (TL::Find("BlockCount", Control.ControlId, False, False)) {
+								declare CMlLabel BlockCount <=> (Control as CMlLabel);
+								BlockCount.Value = GetCountOfABlock(PuzzleBlocks[i].Name) ^ "/" ^ PuzzleBlocks[i].InterfaceNumber;
+							}
+						}
 					}
 				} 
 				case CMapEditorPluginEvent::Type::LayerCustomEvent: {
