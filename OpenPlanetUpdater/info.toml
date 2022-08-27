@@ -1,0 +1,10 @@
+[meta]
+name = "Puzzle2020 Updater"
+author = "Plantathon"
+category = "Solo Mode"
+perms = "paid"
+version = "1.0"
+
+[script]
+imports = [ "Icons.as", "Patch.as", "Permissions.as", "Formatting.as" ]
+
