@@ -275,18 +275,12 @@ Text PuzzlePlayUI() {
 				Frame_PlacementSelection.Show();
 				if (CanFreeBlock) {
 					Button_FreeMode.Show();
-					Button_PlaceMode.StyleSelected = False;
-					Button_GhostMode.StyleSelected = False;
-					Button_FreeMode.StyleSelected = True;
 				}
 				else {
 					Button_FreeMode.Hide();
 				}
 				if (CanGhostBlock) {
 					Button_GhostMode.Show();
-					Button_PlaceMode.StyleSelected = False;
-					Button_GhostMode.StyleSelected = True;
-					Button_FreeMode.StyleSelected = False;
 				}
 				else {
 					Button_GhostMode.Hide();
@@ -297,25 +291,33 @@ Text PuzzlePlayUI() {
 			}
 			while(True) {
 				yield;
+				switch (Editor.PlaceMode) {
+					case CMapEditorPlugin::PlaceMode::FreeBlock: {
+						Button_PlaceMode.StyleSelected = False;
+						Button_GhostMode.StyleSelected = False;
+						Button_FreeMode.StyleSelected = True;
+					}
+					case CMapEditorPlugin::PlaceMode::GhostBlock: {
+						Button_PlaceMode.StyleSelected = False;
+						Button_GhostMode.StyleSelected = True;
+						Button_FreeMode.StyleSelected = False;
+					}
+					case CMapEditorPlugin::PlaceMode::Block: {
+						Button_PlaceMode.StyleSelected = True;
+						Button_GhostMode.StyleSelected = False;
+						Button_FreeMode.StyleSelected = False;
+					}
+				}
 				foreach(Event in PendingEvents) {
 					if(Event.Type == CGameManialinkScriptEvent::Type::MouseClick)	{	
 						switch (Event.ControlId) {
 							case "Button_PlaceMode": {
-								Button_PlaceMode.StyleSelected = True;
-								Button_GhostMode.StyleSelected = False;
-								Button_FreeMode.StyleSelected = False;
 								SendCustomEvent("PlacementEvent", ["0"]);
 							}
 							case "Button_FreeMode": {
-								Button_PlaceMode.StyleSelected = False;
-								Button_GhostMode.StyleSelected = False;
-								Button_FreeMode.StyleSelected = True;
 								SendCustomEvent("PlacementEvent", ["1"]);
 							}
 							case "Button_GhostMode": {
-								Button_PlaceMode.StyleSelected = False;
-								Button_GhostMode.StyleSelected = True;
-								Button_FreeMode.StyleSelected = False;
 								SendCustomEvent("PlacementEvent", ["2"]);
 							}
 							case "Button_TestMode": {
@@ -436,6 +438,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 	}
 	PrevousBlockCount = Blocks.count;
 	BlockStockMode = False;
+	EditMode = CMapEditorPlugin::EditMode::Place;
 	PlaceMode = CMapEditorPlugin::PlaceMode::Block;
 	while (IsPlayingEdit) {
 		yield;
@@ -751,9 +754,12 @@ Text PuzzleCreationUI() {
 	<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 	<manialink version="3">
 	<frame id="PlaySoloPuzzleButton" pos="0 140">
-	<label pos="130 -60" z-index="0" size="20 5" text="Play Puzzle" style="CardButtonMedium" scriptevents="1" halign="center" valign="center" id="Button_PlaySoloPuzzle"/>
-	<label pos="130 -72" z-index="0" size="60 10" text="Clicking this will force you out the editor!" halign="center" valign="center" textemboss="1" textcolor="FF5C5CFF" textfont="Gotham/Gotham-Bold" autonewline="1"/>
-	<quad pos="130 -60" z-index="0" size="45 10" bgcolor="FFFA" halign="center" valign="center"/>
+	<label pos="130 -60" z-index="1" size="20 5" text="Play Puzzle" style="CardButtonMedium" scriptevents="1" halign="center" valign="center" id="Button_PlaySoloPuzzle"/>
+	<label pos="123 -72" z-index="0" size="60 10" text="Clicking this will force you out of the editor!" halign="center" valign="center" textemboss="1" textcolor="FF5C5CFF" textfont="GameFontSemiBold" autonewline="1"/>
+	<label pos="100 -60" z-index="3" size="10 10" text="" halign="center" valign="center" textsize="7" textcolor="fff" textemboss="1"/>
+	<quad pos="99 -60" z-index="2" size="15 15" bgcolor="FFF" opacity="1" halign="center" valign="center" substyle="UncheckCircle_light" style="UICommon64_1" modulatecolor="AAFFACFF"/>
+	<label pos="99 -60" z-index="1" size="15 15" text="" halign="center" valign="center" textsize="8" textcolor="000" opacity="0.3"/>
+	<quad pos="152 -60" z-index="0" size="60 10" bgcolor="FFFA" valign="center" halign="right" style="UICommon128_1" substyle="BgDialog"/>
 	</frame>
 	<script><!--
 	main () {

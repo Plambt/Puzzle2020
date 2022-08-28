@@ -194,17 +194,17 @@ Text PuzzleSoloUI() {
     <manialink version="3" name="SoloUI">
 	<frame id="Frame_SoloUI" pos="0 35">
 	<frame id="Frame_Medal" pos="0 0">
-		<quad pos="-136 70" z-index="0" size="20 20" bgcolor="FFFA" halign="center" valign="center" style="MedalsBig" substyle="MedalSlot" id="Quad_Medal"/>
-		<quad pos="-136 85" z-index="0" size="58.9 30" bgcolor="FFFA" halign="center" style="UICommon128_1" substyle="BgDialogTitle" valign="top" opacity="1.0"/>
+		<quad pos="-130 70" z-index="1" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="MedalsBig" substyle="MedalSlot" id="Quad_Medal"/>
+		<quad pos="-165 85" z-index="0" size="70 30" halign="left" style="UICommon128_1" substyle="BgToolTilted" valign="top" opacity="0.5" colorize="000"/>
 	</frame>
 	<frame id="Frame_SoloGoal" pos="0 -40">
-		<label pos="-158 80" z-index="0" size="30 10" text="Next Medal :" halign="left" textfont="RajdhaniMono" valign="center"/>
-		<label id="Label_NextMedal" pos="-132 80" z-index="0" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<label pos="-158 80" z-index="1" size="30 10" text="Next Medal :" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<label id="Label_NextMedal" pos="-132 80" z-index="1" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
 		<quad pos="-165 85" z-index="0" size="58.9 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
 	</frame>
 	<frame id="Frame_SoloBest" pos="0 -30">
-		<label pos="-158 80" z-index="0" size="30 10" text="Personal Best :" halign="left" textfont="RajdhaniMono" valign="center"/>
-		<label id="Label_PersonalBest" pos="-127 80" z-index="0" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<label pos="-158 80" z-index="1" size="30 10" text="Personal Best :" halign="left" textfont="RajdhaniMono" valign="center"/>
+		<label id="Label_PersonalBest" pos="-127 80" z-index="1" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
 		<quad pos="-165 85" z-index="0" size="63 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
 	</frame>
 </frame>
@@ -301,19 +301,19 @@ Text DefaultValUI() {
     return """
     <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
     <manialink version="3" name="ValUI">
-	<frame id="Frame_ValAuthor">
-	<label pos="-158 80" z-index="0" size="30 10" text="Author Time :" halign="left" textfont="RajdhaniMono" valign="center"/>
-	<label id="Label_AuthorTime" pos="-130 80" z-index="0" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<frame id="Frame_ValAuthor" pos="0 5">
+	<label pos="-158 80" z-index="1" size="30 10" text="Author Time :" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<label id="Label_AuthorTime" pos="-130 80" z-index="1" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
 	<quad pos="-165 85" z-index="0" size="58.9 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
 	</frame>
-	<frame id="Frame_ValScore" pos="0 -10" hidden="1">
+	<frame id="Frame_ValScore" pos="0 -5" hidden="1">
 	<label pos="-158 80" z-index="0" size="30 10" text="Author Score :" halign="left" textfont="RajdhaniMono" valign="center"/>
 	<label id="Label_AuthorScore" pos="-128 80" z-index="0" size="15 10" text="0" halign="left" textfont="RajdhaniMono" valign="center"/>
 	<quad pos="-165 85" z-index="0" size="55 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
 	</frame>
 	<frame id="Frame_NewRecord" z-index="10" pos="0">
-	<label pos="0 100" size="55 10" text="$fffNew Record!!!" textfont="GameFontExtraBold" halign="center" valign="center" textsize="5" textemboss="1"/>
-	<quad pos="0 100" size="58.9 15" bgcolor="FFFA" halign="center" style="UICommon128_1" substyle="BgDialogTitle" valign="center" opacity="1.0"/>
+	<label pos="0 100" size="55 10" text="$fffNew Record!!!" textfont="GameFontExtraBold" halign="center" valign="center" textsize="5" textemboss="1" z-index="1"/>
+	<quad pos="0 100" size="58.9 15" bgcolor="FFFA" halign="center" style="UICommon128_1" substyle="BgFrame1" valign="center" opacity="0.5" colorize="000"/>
 	</frame>
 <script><!--
 	#Include "TextLib" as TL
