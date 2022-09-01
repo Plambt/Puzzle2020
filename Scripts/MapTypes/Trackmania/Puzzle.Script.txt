@@ -11,46 +11,6 @@
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 
-Text EditorPuzzleToggleUI() {
-return
-"""
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-<manialink version="3">
-<quad pos="-90 80" z-index="0" size="10 10" bgcolor="FFFA" style="Icons64x64_1" substyle="ClipPlay" scriptevents="1" halign="center" valign="center" id="PlayMapToggle"/>
-<label pos="-110 80.1" z-index="0" size="20 5" text="PlayMap" textfont="Oswald" halign="left" valign="center" id="PlayMapToggleText"/>
-<quad pos="-99.3 80" z-index="0" size="30 10" bgcolor="FFFA" style="Bgs1InRace" substyle="BgList" halign="center" valign="center"/>
-<script><!--
-main () {
-	declare CMlLabel PlayMapToggleText = (Page.GetFirstChild("PlayMapToggleText") as CMlLabel);
-	declare CMlQuad PlayMapToggle = (Page.GetFirstChild("PlayMapToggle") as CMlQuad);
-	declare Boolean IsPuzzleEnabled;
-	while(True) {
-		yield;
-		foreach(Event in PendingEvents) {
-			if(Event.Type == CGameManialinkScriptEvent::Type::MouseClick)	{	
-				if (Event.ControlId == "PlayMapToggle") {
-					if (IsPuzzleEnabled == False) {
-						SendCustomEvent("TogglePuzzleEditor", ["1"]);
-						PlayMapToggleText.Value = "Return";
-						PlayMapToggle.Substyle = "ClipRewind";
-						IsPuzzleEnabled = True;
-					}
-					else {
-						SendCustomEvent("TogglePuzzleEditor", ["0"]);
-						PlayMapToggleText.Value = "PlayMap";
-						PlayMapToggle.Substyle = "ClipPlay";
-						IsPuzzleEnabled = False;
-					}
-				}
-			}
-		}
-	}
-}
---></script>
-<manialink/>
-""";
-}
-
 Void UpdateValidability() {
 	declare StartsFinishes = 0;
 	declare Starts = 0;
@@ -150,16 +110,6 @@ Void UpdateValidability() {
 	}
 }
 
-Void SetMapScores(Integer _RunTime) {
-	declare persistent Integer RememberedTime for Map;
-	RememberedTime = _RunTime;
-	Map.TMObjective_AuthorTime = _RunTime;
-	Map.ObjectiveTextAuthor = TL::TimeToText(Map.TMObjective_AuthorTime, True);
-	Map.ObjectiveTextGold 	= TL::TimeToText(Map.TMObjective_GoldTime, True);
-	Map.ObjectiveTextSilver = TL::TimeToText(Map.TMObjective_SilverTime, True);
-	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
-}
-
 Void UpdateMapTimes() {
 	declare persistent Integer RememberedTime for Map;
 	Map.TMObjective_AuthorTime = RememberedTime;
@@ -235,14 +185,17 @@ Text PuzzlePlayUI() {
 	<quad pos="75 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block8Icon"/>
 	<quad pos="75 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
 	</frame>
-	<quad pos="-160 -65" z-index="0" size="20 20" bgcolor="FFFA" id="Button_Quit" style="UICommon64_1" substyle="Prev_light" scriptevents="1"/>
-	<quad pos="105 -65" z-index="0" size="20 20" bgcolor="FFFA" id="Button_TestMode" style="UICommon64_1" substyle="SteeringWheel_light" scriptevents="1"/>
-	<quad pos="140 -65" z-index="0" size="20 20" bgcolor="FFFA" id="Button_Validate" style="UICommon64_1" substyle="ValidationFlagGreen" scriptevents="1"/>
-	<quad pos="0 -91" z-index="-5" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog"/>
+	<quad pos="-160 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_Quit" style="UICommon64_1" substyle="Prev_light" scriptevents="1"/>
+	<quad pos="115 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_TestMode" style="UICommon64_1" substyle="SteeringWheel_light" scriptevents="1"/>
+	<quad pos="102 -67.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Camera" style="UICommon64_1" substyle="Camera_dark" scriptevents="1" halign="center" valign="center"/>
+	<quad pos="102 -82.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Eraser" style="UICommon64_1" substyle="Eraser_dark" scriptevents="1" halign="center" valign="center"/>
+	<quad pos="102 -75" z-index="1" size="15 27" bgcolor="FFF" opacity="0.7" style="UICommon128_1" substyle="BgFrame1" halign="center" valign="center"/>
+	<quad pos="140 -65" z-index="2" size="20 20" bgcolor="FFFA" id="Button_Validate" style="UICommon64_1" substyle="ValidationFlagGreen" scriptevents="1"/>
+	<quad pos="0 -91" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog" z-index="-1"/>
 	</frame>	
 	<script><!--
 
-		#include "TextLib" as TL
+		#Include "TextLib" as TL
 
 		main () {
 			declare Boolean CanFreeBlock = {{{MapUsesFreeBlocks}}};
@@ -303,6 +256,12 @@ Text PuzzlePlayUI() {
 							case "Button_TestMode": {
 								SendCustomEvent("TestModeEvent", [""]);
 							}
+							case "Button_Camera": {
+								SendCustomEvent("CameraEvent", [""]);
+							}
+							case "Button_Eraser": {
+								SendCustomEvent("EraseEvent", [""]);
+							}
 							case "Button_Validate": {
 								SendCustomEvent("ValidateModeEvent", [""]);
 							}
@@ -310,8 +269,8 @@ Text PuzzlePlayUI() {
 								SendCustomEvent("QuitPuzzleEvent", [""]);
 							}
 						}
-						if (TL::EndsWith("Icon", Event.ControlId){
-							SendCustomEvent("SelectPuzzleBlock", [(TL::ToInteger(Event.ControlId) - 1) ^ ""]);
+						if (TL::EndsWith("Icon", Event.ControlId)){
+							SendCustomEvent("SelectPuzzleBlock", [(TL::ToInteger(TL::Join("", TL::RegexFind("1|2|3|4|5|6|7|8|9", Event.ControlId, "g"))) - 1) ^ ""]);
 						}
 					}
 				}
@@ -491,6 +450,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 				case CMapEditorPluginEvent::Type::LayerCustomEvent: {
 					switch (Event.CustomEventType) {
 						case "SelectPuzzleBlock": {
+							EditMode = CMapEditorPlugin::EditMode::Place;
 							if (PlaceMode == CMapEditorPlugin::PlaceMode::Test) {
 								PlaceMode = CMapEditorPlugin::PlaceMode::Block;
 							}
@@ -511,6 +471,12 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						}
 						case "TestModeEvent": {
 							PlaceMode = CMapEditorPlugin::PlaceMode::Test;
+						}
+						case "EraseEvent": {
+							EditMode = CMapEditorPlugin::EditMode::Erase;
+						}
+						case "CameraEvent": {
+							EditMode = CMapEditorPlugin::EditMode::FreeLook;
 						}
 						case "ValidateModeEvent": {
 							declare Integer BoolToInt;
@@ -577,6 +543,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 
 Void CustomObjectivesMenu() {
 HideEditorInterface = True;
+HideOtherPlugins();
 declare metadata Boolean IsLocked for Map;
 declare metadata Boolean MapUsesFreeBlocks for Map;
 declare metadata Boolean MapUsesGhostBlocks for Map;
@@ -594,29 +561,29 @@ ManialinkText =
 """
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <manialink version="3">
-<label pos="20 22" z-index="0" size="40 5" text="$oExperimental Features" halign="center" valign="center" textemboss="1" textsize="2"/>
-<label pos="25 -2" z-index="0" size="40 5" text="$oEditing locked?" halign="center" valign="center" textemboss="1"/>
-<quad pos="-40 17" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalNadeo" halign="center" valign="center"/>
-<quad pos="-40 6" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalGold" halign="center" valign="center"/>
-<quad pos="-40 -5" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalSilver" halign="center" valign="center"/>
-<quad pos="-40 -16" z-index="0" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalBronze" halign="center" valign="center"/>
-<label id="AuthorScore" pos="-20 17" z-index="0" size="29 5" text="{{{Map.TMObjective_AuthorTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="D9D9D9FF"/>
-<entry id="CustomGoldScore" pos="-20 6" z-index="0" size="29 5" default="{{{Map.TMObjective_GoldTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
-<entry id="CustomSilverScore" pos="-20 -5" z-index="0" size="29 5" default="{{{Map.TMObjective_SilverTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
-<entry id="CustomBronzeScore" pos="-20 -16" z-index="0" size="29 5" default="{{{Map.TMObjective_BronzeTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
-<label  pos="20 17" z-index="0" size="40 5" text="$o$FFFPlayer can GhostBlock." style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="D9D9D9FF" textemboss="1" textsize="4"/>
-<label  pos="20 10" z-index="0" size="40 5" text="$o$FFFPlayer can FreeBlock." style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="D9D9D9FF" textemboss="1" textsize="4"/>
-<quad pos="44 16" z-index="0" size="8 8" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditGhost" scriptevents="1"/>
-<quad pos="44 9" z-index="0" size="8 8" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditFree" scriptevents="1"/>
-<quad pos="10 -11" z-index="0" size="10 10" bgcolor="FFFA" style="Icons128x128_1" substyle="Load" halign="center" valign="center"/>
-<quad pos="20 -11" z-index="0" size="10 10" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditLocker" scriptevents="1"/>
-<quad pos="0 0" z-index="0" size="100 50" bgcolor="FFFA" style="Bgs1InRace" substyle="BgHealthBar" halign="center" valign="center"/>
-<label id="ExitButton" pos="25 -35" z-index="0" size="10 5" text="Exit" style="CardButtonMediumL" halign="center" valign="center" scriptevents="1"/>
-<label id="ApplyButton" pos="-25 -35" z-index="0" size="10 5" text="Apply" style="CardButtonMediumL" halign="center" valign="center" scriptevents="1"/>
-<quad pos="0 -35" z-index="0" size="100 15" bgcolor="FFFA" style="Bgs1InRace" substyle="BgHealthBar" halign="center" valign="center"/>
-<label pos="0 35" z-index="0" size="100 10" text="Set Objectives" halign="center" valign="center2" textfont="Gotham/Gotham-Bold" textsize="5" textemboss="1"/>
-<quad pos="0 35" z-index="0" size="110 15" bgcolor="FFFA" style="Bgs1InRace" substyle="BgTitle3_5" opacity="1" valign="center" halign="center"/>
-<quad pos="0 0" z-index="0" size="500 500" bgcolor="FFFF" halign="center" valign="center" scriptevents="1"/>				
+<label pos="20 17" z-index="1" size="45 7" text="Experimental Features" halign="center" valign="center" textsize="2" textfont="GameFontExtraBold" textemboss="1"/>
+<label pos="20 -8" z-index="1" size="40 5" text="Author Lock" halign="center" valign="center" textcolor="FFF" textfont="GameFontExtraBold" textemboss="1"/>
+<quad pos="-40 17" z-index="1" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalNadeo" halign="center" valign="center"/>
+<quad pos="-40 6" z-index="1" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalGold" halign="center" valign="center"/>
+<quad pos="-40 -5" z-index="1" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalSilver" halign="center" valign="center"/>
+<quad pos="-40 -16" z-index="1" size="10 10" bgcolor="FFFA" style="MedalsBig" substyle="MedalBronze" halign="center" valign="center"/>
+<label id="AuthorScore" pos="-20 17" z-index="1" size="29 5" text="{{{Map.TMObjective_AuthorTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="D9D9D9FF"/>
+<entry id="CustomGoldScore" pos="-20 6" z-index="1" size="29 5" default="{{{Map.TMObjective_GoldTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
+<entry id="CustomSilverScore" pos="-20 -5" z-index="1" size="29 5" default="{{{Map.TMObjective_SilverTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
+<entry id="CustomBronzeScore" pos="-20 -16" z-index="1" size="29 5" default="{{{Map.TMObjective_BronzeTime}}}" style="Manialink_Body" halign="center" valign="center" selecttext="1"/>
+<label  pos="20 10" z-index="1" size="40 5" text="Player can GhostBlock." style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="FFF" textsize="2" textfont="GameFont"/>
+<label  pos="20 0" z-index="1" size="40 5" text="Player can FreeBlock." style="Manialink_Body" halign="center" valign="center" selecttext="1" textcolor="FFF" textsize="2" textfont="GameFont"/>
+<quad pos="44 10" z-index="1" size="8 8" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditGhost" scriptevents="1"/>
+<quad pos="44 0" z-index="1" size="8 8" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditFree" scriptevents="1"/>
+<quad pos="15 -17" z-index="1" size="10 10" bgcolor="FFFA" style="Icons128x128_1" substyle="Load" halign="center" valign="center"/>
+<quad pos="25 -17" z-index="1" size="10 10" bgcolor="FFFA" style="UICommon64_1" substyle="CheckboxCircle_light" halign="center" valign="center" styleselected="1" id="Button_EditLocker" scriptevents="1"/>
+<quad pos="0 0" z-index="0" size="100 80" bgcolor="FFFA" style="UICommon128_1" substyle="BgDialog" halign="center" valign="center"/>
+<label id="ExitButton" pos="25 -34" z-index="1" size="10 5" text="Exit" style="CardButtonMediumL" halign="center" valign="center" scriptevents="1"/>
+<label id="ApplyButton" pos="-25 -34" z-index="1" size="10 5" text="Apply" style="CardButtonMediumL" halign="center" valign="center" scriptevents="1"/>
+
+<label pos="0 32.5" z-index="2" size="100 10" text="Set Objectives" halign="center" valign="center2" textfont="GameFontExtraBold" textsize="5"/>
+<quad pos="0 33" z-index="1" size="100 15" bgcolor="FFFA" style="UICommon128_1" substyle="BgDialogTitle" opacity="1" valign="center" halign="center"/>
+<quad pos="0.222 0.666" z-index="0" size="500 500" bgcolor="FFFA" halign="center" valign="center" scriptevents="1" substyle="BgCardList" style="Bgs1" opacity="0.1"/>		
 <script><!--
 main () {
 	declare ButtonClicked for Page = "";
@@ -704,6 +671,7 @@ while(True) 	{
 	}
 }
 ManialinkText = "";
+ShowOtherPlugins();
 HideEditorInterface = False;
 }
 
@@ -712,12 +680,14 @@ Text PuzzleCreationUI() {
 	<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 	<manialink version="3">
 	<frame id="PlaySoloPuzzleButton">
-	<label pos="130 80" z-index="1" size="20 5" text="Play Puzzle" style="CardButtonMedium" scriptevents="1" halign="center" valign="center" id="Button_PlaySoloPuzzle"/>
+	<label pos="127 80" z-index="1" size="20 5" text="Play Puzzle" style="CardButtonMedium" scriptevents="1" halign="center" valign="center" id="Button_PlaySoloPuzzle"/>
 	<label pos="123 68" z-index="0" size="60 10" text="Clicking this will force you out of the editor!" halign="center" valign="center" textemboss="1" textcolor="FF5C5CFF" textfont="GameFontSemiBold" autonewline="1"/>
-	<label pos="110 80" z-index="3" size="10 10" text="" halign="center" valign="center" textsize="7" textcolor="fff" textemboss="1"/>
-	<quad pos="109 80" z-index="2" size="15 15" bgcolor="FFF" opacity="1" halign="center" valign="center" substyle="UncheckCircle_light" style="UICommon64_1" modulatecolor="AAFFACFF"/>
-	<label pos="109 80" z-index="1" size="15 15" text="" halign="center" valign="center" textsize="8" textcolor="000" opacity="0.3"/>
-	<quad pos="152 80" z-index="0" size="60 10" bgcolor="FFFA" valign="center" halign="right" style="UICommon128_1" substyle="BgDialog"/>
+	<label pos="104 80" z-index="5" size="10 10" text="" halign="center" valign="center" textsize="7" textcolor="fff" textemboss="1"/>
+	<quad pos="103 80" z-index="4" size="15 15" bgcolor="FFF" opacity="1" halign="center" valign="center" substyle="UncheckCircle_light" style="UICommon64_1" modulatecolor="AAFFACFF"/>
+	<quad pos="103 80" z-index="3" size="12 12" bgcolor="FFF" opacity="0.5" halign="center" valign="center" substyle="UncheckCircle_light" style="UICommon64_1" modulatecolor="AAFFACFF"/>
+	<quad pos="103 80" z-index="2" size="10 10" bgcolor="FFF" opacity="0.2" halign="center" valign="center" substyle="UncheckCircle_light" style="UICommon64_1" modulatecolor="AAFFACFF"/>
+	<!--<label pos="103 80" z-index="0" size="15 15" text="" halign="center" valign="center" textsize="8" textcolor="000" opacity="0.3"/>-->
+	<quad pos="122 80" z-index="0" size="55 10" bgcolor="FFFA" valign="center" style="UICommon128_1" substyle="BgDialog" halign="center"/>
 	</frame>
 	<script><!--
 	main () {
@@ -751,7 +721,6 @@ main() {
 	declare metadata Boolean IsLocked for Map = True;
 	declare CBlockModel BlockModel;
 	RememberedTime = Map.TMObjective_AuthorTime;
-	ManialinkText = EditorPuzzleToggleUI();
 	ShowOtherPlugins();
 	if (LocalUser.Login != Map.AuthorLogin && IsLocked && ValidationStatus == CMapType::ValidationStatus::Validated) {
 		IsPlaying = True;
