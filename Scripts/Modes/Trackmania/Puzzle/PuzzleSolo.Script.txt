@@ -282,7 +282,7 @@ main() {
         if (GUIPlayer != Null) {
             if (GUIPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning && !IsMedalShown) {
                 log("New Record!!!");
-                AnimMgr.Add(Frame_SoloUI, "<frame pos=\"0 5\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
+                AnimMgr.Add(Frame_SoloUI, "<frame pos=\"0 5\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpOut);
                 IsMedalShown = True;
             }
             else if (GUIPlayer.SpawnStatus != CSmPlayer::ESpawnStatus::Spawning && IsMedalShown){
@@ -326,7 +326,7 @@ Text DefaultValUI() {
 		while (True) {
 			yield;
 			if (Now >= NewMoveTime && NewMoveTime != 0) {
-				AnimMgr.Add(Frame_NewRecord, "<frame pos=\"0 0\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
+				AnimMgr.Add(Frame_NewRecord, "<frame pos=\"0 0\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpOut);
 				NewMoveTime = 0;
 			}
 			if (PreviousAuthorTIme != Map.TMObjective_AuthorTime) {

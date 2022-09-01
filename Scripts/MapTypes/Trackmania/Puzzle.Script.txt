@@ -169,29 +169,6 @@ Void UpdateMapTimes() {
 	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
 }
 
-Void EndSoloRace(Integer _RunTime) {
-	declare persistent Integer PlayerRecordTime for Map;
-	declare persistent Text PlayerAchievedMedal for Map;
-	if (_RunTime <= Map.TMObjective_AuthorTime) {
-		PlayerAchievedMedal = "Author";
-	}
-	else if (_RunTime <= Map.TMObjective_GoldTime && _RunTime > Map.TMObjective_AuthorTime){
-		PlayerAchievedMedal = "Gold";
-	}
-	else if (_RunTime <= Map.TMObjective_SilverTime && _RunTime > Map.TMObjective_GoldTime){
-		PlayerAchievedMedal = "Silver";
-	}
-	else if (_RunTime <= Map.TMObjective_BronzeTime && _RunTime > Map.TMObjective_SilverTime){
-		PlayerAchievedMedal = "Bronze";
-	}
-	else {
-		PlayerAchievedMedal = "NoMedal";
-	}
-	if (_RunTime < PlayerRecordTime || PlayerRecordTime == 0) {
-		PlayerRecordTime = _RunTime;
-	}
-}
-
 Integer GetCountOfABlock(Text _BlockName) {
 	declare Int3[] PreBlockCoords for Map;
 	declare Integer NumberOfBlocks;
@@ -264,6 +241,9 @@ Text PuzzlePlayUI() {
 	<quad pos="0 -91" z-index="-5" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog"/>
 	</frame>	
 	<script><!--
+
+		#include "TextLib" as TL
+
 		main () {
 			declare Boolean CanFreeBlock = {{{MapUsesFreeBlocks}}};
 			declare Boolean CanGhostBlock = {{{MapUsesGhostBlocks}}};
@@ -329,31 +309,9 @@ Text PuzzlePlayUI() {
 							case "Button_Quit": {
 								SendCustomEvent("QuitPuzzleEvent", [""]);
 							}
-							case "Block1Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["0"]);
-							}
-							case "Block2Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["1"]);
-							}
-							case "Block3Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["2"]);
-							}
-							case "Block4Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["3"]);
-							}
-							case "Block5Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["4"]);
-							}
-							case "Block6Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["5"]);
-							}
-							case "Block7Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["6"]);
-							}
-							case "Block8Icon": {
-								SendCustomEvent("SelectPuzzleBlock", ["7"]);
-							}
-							default: {}
+						}
+						if (TL::EndsWith("Icon", Event.ControlId){
+							SendCustomEvent("SelectPuzzleBlock", [(TL::ToInteger(Event.ControlId) - 1) ^ ""]);
 						}
 					}
 				}
@@ -658,7 +616,7 @@ ManialinkText =
 <quad pos="0 -35" z-index="0" size="100 15" bgcolor="FFFA" style="Bgs1InRace" substyle="BgHealthBar" halign="center" valign="center"/>
 <label pos="0 35" z-index="0" size="100 10" text="Set Objectives" halign="center" valign="center2" textfont="Gotham/Gotham-Bold" textsize="5" textemboss="1"/>
 <quad pos="0 35" z-index="0" size="110 15" bgcolor="FFFA" style="Bgs1InRace" substyle="BgTitle3_5" opacity="1" valign="center" halign="center"/>
-<quad pos="0 0" z-index="0" size="500 500" bgcolor="3B3B3BAA" halign="center" valign="center" scriptevents="1"/>				
+<quad pos="0 0" z-index="0" size="500 500" bgcolor="FFFF" halign="center" valign="center" scriptevents="1"/>				
 <script><!--
 main () {
 	declare ButtonClicked for Page = "";
@@ -753,13 +711,13 @@ Text PuzzleCreationUI() {
 	return """
 	<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 	<manialink version="3">
-	<frame id="PlaySoloPuzzleButton" pos="0 140">
-	<label pos="130 -60" z-index="1" size="20 5" text="Play Puzzle" style="CardButtonMedium" scriptevents="1" halign="center" valign="center" id="Button_PlaySoloPuzzle"/>
-	<label pos="123 -72" z-index="0" size="60 10" text="Clicking this will force you out of the editor!" halign="center" valign="center" textemboss="1" textcolor="FF5C5CFF" textfont="GameFontSemiBold" autonewline="1"/>
-	<label pos="100 -60" z-index="3" size="10 10" text="" halign="center" valign="center" textsize="7" textcolor="fff" textemboss="1"/>
-	<quad pos="99 -60" z-index="2" size="15 15" bgcolor="FFF" opacity="1" halign="center" valign="center" substyle="UncheckCircle_light" style="UICommon64_1" modulatecolor="AAFFACFF"/>
-	<label pos="99 -60" z-index="1" size="15 15" text="" halign="center" valign="center" textsize="8" textcolor="000" opacity="0.3"/>
-	<quad pos="152 -60" z-index="0" size="60 10" bgcolor="FFFA" valign="center" halign="right" style="UICommon128_1" substyle="BgDialog"/>
+	<frame id="PlaySoloPuzzleButton">
+	<label pos="130 80" z-index="1" size="20 5" text="Play Puzzle" style="CardButtonMedium" scriptevents="1" halign="center" valign="center" id="Button_PlaySoloPuzzle"/>
+	<label pos="123 68" z-index="0" size="60 10" text="Clicking this will force you out of the editor!" halign="center" valign="center" textemboss="1" textcolor="FF5C5CFF" textfont="GameFontSemiBold" autonewline="1"/>
+	<label pos="110 80" z-index="3" size="10 10" text="" halign="center" valign="center" textsize="7" textcolor="fff" textemboss="1"/>
+	<quad pos="109 80" z-index="2" size="15 15" bgcolor="FFF" opacity="1" halign="center" valign="center" substyle="UncheckCircle_light" style="UICommon64_1" modulatecolor="AAFFACFF"/>
+	<label pos="109 80" z-index="1" size="15 15" text="" halign="center" valign="center" textsize="8" textcolor="000" opacity="0.3"/>
+	<quad pos="152 80" z-index="0" size="60 10" bgcolor="FFFA" valign="center" halign="right" style="UICommon128_1" substyle="BgDialog"/>
 	</frame>
 	<script><!--
 	main () {
@@ -787,9 +745,6 @@ Text PuzzleCreationUI() {
 // ---------------------------------- //
 main() {
     +++MapTypeStart+++
-	CopyPaste_ResetSelection();
-	CopyPaste_AddOrSubSelection(<29, 29, 33>, <29, 29, 33>);
-	CopyPaste_Remove();
 	declare persistent Integer RememberedTime for Map;
 	declare Boolean IsPlaying for Map;
 	declare metadata Text[] PuzzleBlockNames for Map;
@@ -877,7 +832,7 @@ main() {
 			}
 		}
 		else {
-			//PlayLoop
+			//Play the puzzle if the Author login doesn't match.
 			StartPuzzlePlay(False);
 		}
 	}			
