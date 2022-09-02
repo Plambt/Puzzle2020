@@ -3,6 +3,7 @@ name = "Puzzle Updater"
 author = "Plantathon"
 category = "Solo"
 version = "1.0"
+siteid = 241
 
 [script]
 imports = [ "Icons.as" ]
