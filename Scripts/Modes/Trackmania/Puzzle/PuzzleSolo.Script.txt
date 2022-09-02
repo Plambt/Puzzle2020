@@ -42,6 +42,8 @@ else {
 
 ***Match_StartMap***
 ***
+declare netwrite Boolean IsModeReady for Teams[0];
+declare netwrite Integer Net_PersonalBest for Teams[0];
 declare CTaskResult_GhostList TempGhostList;
 TempGhostList = DataFileMgr.Replay_Load("PuzzleRecords/" ^ Map.MapName ^ "_" ^ Players[0].User.Name ^".Replay.Gbx");
 while (TempGhostList.IsProcessing) {
@@ -69,13 +71,16 @@ foreach (Player in AllPlayers) {
     Net_Race_Checkpoint_IsVisible = True;
     Net_Campaign_BlockHelper_IsVisible = True;
 }
+Net_PersonalBest = BestScore_RaceTime;
+MB_Yield();
+IsModeReady = True;
 ***
 
 ***Match_PlayLoop***
 ***
 declare persistent Integer BestScore_RaceTime for Map;
+declare netwrite Integer Net_PersonalBest for Teams[0];
 foreach (Player in Players) {
-    declare netwrite Integer Net_PersonalBest for Player;
     Net_PersonalBest = BestScore_RaceTime;
     if (Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned) {
         if (PersonalBest != Null) {
@@ -229,6 +234,10 @@ Text PuzzleSoloUI() {
 		<quad pos="-165 85" z-index="0" size="63 10" bgcolor="FFFA" valign="top" halign="left" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
 	</frame>
 </frame>
+<frame id="Frame_NewRecord" z-index="10" pos="0">
+    <label pos="0 100" size="55 10" text="$fffNew Record!!!" textfont="GameFontExtraBold" halign="center" valign="center" textsize="5" textemboss="1" z-index="1"/>
+    <quad pos="0 100" size="58.9 15" bgcolor="FFFA" halign="center" style="UICommon128_1" substyle="BgFrame1" valign="center" opacity="0.5" colorize="000"/>
+</frame>
 <script><!--
 	#Include "TextLib" as TL
 
@@ -266,12 +275,16 @@ main() {
     declare CMlFrame Frame_Medal <=> (Page.GetFirstChild("Frame_Medal") as CMlFrame);
     declare CMlFrame Frame_SoloGoal <=> (Page.GetFirstChild("Frame_SoloGoal") as CMlFrame);
     declare CMlFrame Frame_SoloUI <=> (Page.GetFirstChild("Frame_SoloUI") as CMlFrame);
+    declare CMlFrame Frame_NewRecord <=> (Page.GetFirstChild("Frame_NewRecord") as CMlFrame);
     declare Boolean IsMedalShown = False;
+    declare netread Integer Net_PersonalBest for Teams[0];
+    declare Integer PreviousPersonalBest = Net_PersonalBest;
+    declare Integer NewMoveTime = 0;
+    declare netread Boolean IsModeReady for Teams[0];
     Frame_SoloGoal.Show();
     while (True) {
         yield;
         if (InputPlayer != Null) {
-            declare netread Integer Net_PersonalBest for InputPlayer;
             Quad_Medal.Substyle = GetMedalImage(Net_PersonalBest);
 
             if (Net_PersonalBest <= 0) {
@@ -300,9 +313,23 @@ main() {
                 default: {}
             }
         }
+        if (IsModeReady) {
+            if (Now >= NewMoveTime && NewMoveTime != 0) {
+                AnimMgr.Add(Frame_NewRecord, "<frame pos=\"0 0\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
+                NewMoveTime = 0;
+            }
+            if (PreviousPersonalBest != Net_PersonalBest) {
+                log("New Record!!!");
+                AnimMgr.Add(Frame_NewRecord, "<frame pos=\"0 -15\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpOut);
+                NewMoveTime = Now + 1500;
+                PreviousPersonalBest = Net_PersonalBest;
+            }
+        }
+        else {
+            PreviousPersonalBest = Net_PersonalBest;
+        }
         if (GUIPlayer != Null) {
             if (GUIPlayer.SpawnStatus == CSmPlayer::ESpawnStatus::Spawning && !IsMedalShown) {
-                log("New Record!!!");
                 AnimMgr.Add(Frame_SoloUI, "<frame pos=\"0 5\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
                 IsMedalShown = True;
             }
