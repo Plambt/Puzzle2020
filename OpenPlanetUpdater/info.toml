@@ -1,10 +1,9 @@
 [meta]
-name = "Puzzle2020 Updater"
+name = "Puzzle Updater"
 author = "Plantathon"
-category = "Solo Mode"
-perms = "paid"
+category = "Solo"
 version = "1.0"
 
 [script]
-imports = [ "Icons.as", "Patch.as", "Permissions.as", "Formatting.as" ]
+imports = [ "Icons.as" ]
 
