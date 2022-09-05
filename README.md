@@ -3,6 +3,8 @@
 <br/>
 <img src="https://github.com/Plambt/Puzzle2020/raw/main/PuzzleLogo.png" alt="PuzzleLogo" width="100" height="100"/>
 <br/>
+
+
 This repository contains the code for Puzzle 2020 and it's Openplanet Installer.  
 The Installer obtains the latest version from this exact repository. (Given that ScriptVersion.txt has been edited)  
 
