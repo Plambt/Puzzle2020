@@ -218,6 +218,10 @@ Text PuzzleSoloUI() {
     return """
     <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
     <manialink version="3" name="SoloUI">
+    <frame id="Frame_LapsCount">
+    <label id="Label_LapsCount" pos="142 80.5" z-index="1" textsize="5" size="22 10" text="1/1" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<quad pos="165 85" z-index="0" size="30 10" bgcolor="FFFA" valign="top" halign="right" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
+    </frame>
 	<frame id="Frame_SoloUI" pos="0 35">
 	<frame id="Frame_Medal" pos="0 0">
 		<quad pos="-130 70" z-index="1" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="MedalsBig" substyle="MedalSlot" id="Quad_Medal"/>
@@ -271,11 +275,13 @@ Text PuzzleSoloUI() {
 main() {
     declare CMlLabel Label_NextMedal <=> (Page.GetFirstChild("Label_NextMedal") as CMlLabel);
     declare CMlLabel Label_PersonalBest <=> (Page.GetFirstChild("Label_PersonalBest") as CMlLabel);
+    declare CMlLabel Label_LapsCount <=> (Page.GetFirstChild("Label_LapsCount") as CMlLabel);
     declare CMlQuad Quad_Medal <=> (Page.GetFirstChild("Quad_Medal") as CMlQuad);
     declare CMlFrame Frame_Medal <=> (Page.GetFirstChild("Frame_Medal") as CMlFrame);
     declare CMlFrame Frame_SoloGoal <=> (Page.GetFirstChild("Frame_SoloGoal") as CMlFrame);
     declare CMlFrame Frame_SoloUI <=> (Page.GetFirstChild("Frame_SoloUI") as CMlFrame);
     declare CMlFrame Frame_NewRecord <=> (Page.GetFirstChild("Frame_NewRecord") as CMlFrame);
+    declare CMlFrame Frame_LapsCount <=> (Page.GetFirstChild("Frame_LapsCount") as CMlFrame);
     declare Boolean IsMedalShown = False;
     declare netread Integer Net_PersonalBest for Teams[0];
     declare Integer PreviousPersonalBest = Net_PersonalBest;
@@ -286,6 +292,16 @@ main() {
         yield;
         if (InputPlayer != Null) {
             Quad_Medal.Substyle = GetMedalImage(Net_PersonalBest);
+
+            if (Map.TMObjective_IsLapRace) {
+                if (!Frame_LapsCount.Visible) {
+                    Frame_LapsCount.Show();
+                }
+                Label_LapsCount.Value = InputPlayer.CurrentLapNumber ^ "/" ^ Map.TMObjective_NbLaps;
+            }
+            else {
+                PreviousPersonalBest = Net_PersonalBest;
+            }
 
             if (Net_PersonalBest <= 0) {
                 Label_PersonalBest.Value = TL::TimeToText(0, True);
@@ -349,6 +365,10 @@ Text DefaultValUI() {
     return """
     <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
     <manialink version="3" name="ValUI">
+    <frame id="Frame_LapsCount">
+    <label id="Label_LapsCount" pos="142 80.5" z-index="1" textsize="5" size="22 10" text="1/1" halign="left" textfont="RajdhaniMono" valign="center"/>
+	<quad pos="165 85" z-index="0" size="30 10" bgcolor="FFFA" valign="top" halign="right" style="UICommon128_1" substyle="BgToolTilted" opacity="0.5" colorize="000"/>
+    </frame>
 	<frame id="Frame_ValAuthor" pos="0 5">
 	<label pos="-158 80" z-index="1" size="30 10" text="Author Time :" halign="left" textfont="RajdhaniMono" valign="center"/>
 	<label id="Label_AuthorTime" pos="-130 80" z-index="1" size="22 10" text="00:00.00" halign="left" textfont="RajdhaniMono" valign="center"/>
@@ -367,12 +387,25 @@ Text DefaultValUI() {
 	#Include "TextLib" as TL
 	main() {
 		declare CMlLabel Label_AuthorTime <=> (Page.GetFirstChild("Label_AuthorTime") as CMlLabel);
-		declare CMlLabel Label_AuthorScore <=> (Page.GetFirstChild("Label_AuthorScore") as CMlLabel);
+		declare CMlLabel Label_LapsCount <=> (Page.GetFirstChild("Label_LapsCount") as CMlLabel);
+        declare CMlLabel Label_AuthorScore <=> (Page.GetFirstChild("Label_AuthorScore") as CMlLabel);
 		declare CMlFrame Frame_NewRecord <=> (Page.GetFirstChild("Frame_NewRecord") as CMlFrame);
+        declare CMlFrame Frame_LapsCount <=> (Page.GetFirstChild("Frame_LapsCount") as CMlFrame);
 		declare Integer PreviousAuthorTIme = Map.TMObjective_AuthorTime;
 		declare Integer NewMoveTime = 0;
 		while (True) {
 			yield;
+            if (Map.TMObjective_IsLapRace) {
+                if (!Frame_LapsCount.Visible) {
+                    Frame_LapsCount.Show();
+                }
+                if (InputPlayer != Null) {
+                    Label_LapsCount.Value = InputPlayer.CurrentLapNumber ^ "/" ^ Map.TMObjective_NbLaps;
+                }
+            }
+            else if (Frame_LapsCount.Visible) {
+                Frame_LapsCount.Hide();
+            }
 			if (Now >= NewMoveTime && NewMoveTime != 0) {
 				AnimMgr.Add(Frame_NewRecord, "<frame pos=\"0 0\" />", Now, 250, CAnimManager::EAnimManagerEasing::ExpIn);
 				NewMoveTime = 0;

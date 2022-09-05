@@ -186,10 +186,12 @@ Text PuzzlePlayUI() {
 	<quad pos="75 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
 	</frame>
 	<quad pos="-160 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_Quit" style="UICommon64_1" substyle="Prev_light" scriptevents="1"/>
+	<quad pos="-125 -75" z-index="1" size="15 15" bgcolor="FFFA" id="Button_HideClips" style="UICommon64_2" substyle="BlockProperties_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="115 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_TestMode" style="UICommon64_1" substyle="SteeringWheel_light" scriptevents="1"/>
 	<quad pos="102 -67.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Camera" style="UICommon64_1" substyle="Camera_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="102 -82.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Eraser" style="UICommon64_1" substyle="Eraser_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="102 -75" z-index="1" size="15 27" bgcolor="FFF" opacity="0.7" style="UICommon128_1" substyle="BgFrame1" halign="center" valign="center"/>
+	<quad pos="-125 -75" z-index="1" size="15 27" bgcolor="FFF" opacity="0.7" style="UICommon128_1" substyle="BgFrame1" halign="center" valign="center"/>
 	<quad pos="140 -65" z-index="2" size="20 20" bgcolor="FFFA" id="Button_Validate" style="UICommon64_1" substyle="ValidationFlagGreen" scriptevents="1"/>
 	<quad pos="0 -91" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog" z-index="-1"/>
 	</frame>	
@@ -204,6 +206,7 @@ Text PuzzlePlayUI() {
 			declare CMlQuad Button_PlaceMode = Page.GetFirstChild("Button_PlaceMode") as CMlQuad;
 			declare CMlQuad Button_GhostMode = Page.GetFirstChild("Button_GhostMode") as CMlQuad;
 			declare CMlQuad Button_FreeMode = Page.GetFirstChild("Button_FreeMode") as CMlQuad;
+			declare CMlQuad Button_HideClips = Page.GetFirstChild("Button_HideClips") as CMlQuad;
 			if (CanFreeBlock || CanGhostBlock) {
 				Frame_PlacementSelection.Show();
 				if (CanFreeBlock) {
@@ -224,6 +227,12 @@ Text PuzzlePlayUI() {
 			}
 			while(True) {
 				yield;
+				if (Editor.HideBlockHelpers && !Button_HideClips.StyleSelected) {
+					Button_HideClips.StyleSelected = True;
+				}
+				else if (!Editor.HideBlockHelpers && Button_HideClips.StyleSelected) {
+					Button_HideClips.StyleSelected = False;
+				}
 				switch (Editor.PlaceMode) {
 					case CMapEditorPlugin::PlaceMode::FreeBlock: {
 						Button_PlaceMode.StyleSelected = False;
@@ -252,6 +261,9 @@ Text PuzzlePlayUI() {
 							}
 							case "Button_GhostMode": {
 								SendCustomEvent("PlacementEvent", ["2"]);
+							}
+							case "Button_HideClips": {
+								SendCustomEvent("ToggleClips", [""]);
 							}
 							case "Button_TestMode": {
 								SendCustomEvent("TestModeEvent", [""]);
@@ -399,6 +411,9 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 								NewBlockCoords.add(Block.Coord);
 								if (!PreBlockCoords.exists(Block.Coord)) {
 									log(Block.Coord);
+									if (!PuzzleBlocks.exists(Block.BlockModel) && !TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
+										CueUndo = True;
+									}
 									if (Block.Coord == <-1, 0, -1>) {
 										if (!MapUsesFreeBlocks) {
 											CueUndo = True;
@@ -471,6 +486,9 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						}
 						case "TestModeEvent": {
 							PlaceMode = CMapEditorPlugin::PlaceMode::Test;
+						}
+						case "ToggleClips": {
+							HideBlockHelpers = !HideBlockHelpers;
 						}
 						case "EraseEvent": {
 							EditMode = CMapEditorPlugin::EditMode::Erase;
