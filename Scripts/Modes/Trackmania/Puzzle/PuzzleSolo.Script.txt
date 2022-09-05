@@ -19,6 +19,7 @@
 #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/RaceTest/RaceTest.Script.txt" //< Url of the mania app
 
 declare CGhost PersonalBest;
+declare CSmMapLandmark MapSpawn;
 
 ***Match_StartServer***
 ***
@@ -59,6 +60,18 @@ if (PersonalBest != Null) {
 if (BestScore_RaceTime == 0) {
     BestScore_RaceTime = -1;
 }
+MapSpawn = Null;
+foreach (i => Elem in MapLandmarks_PlayerSpawn) {
+    if (MapSpawn == Null) {
+        MapSpawn = Elem;
+    }
+    else {
+        if (MapSpawn.Waypoint != Null) {
+            MapSpawn = Elem;
+        }
+    }
+    
+}
 foreach (Player in AllPlayers) {
     Player.UseCrudeExtrapolation = False;
     Player.TrustClientSimu = False;
@@ -87,7 +100,7 @@ foreach (Player in Players) {
             GhostMgr.Ghost_RemoveAll();
             GhostMgr.Ghost_Add(PersonalBest, False);
         }
-        SpawnPlayer(Player, 0, Player.ArmorMax, MapLandmarks_PlayerSpawn[0].PlayerSpawn, Now + 1500);
+        SpawnPlayer(Player, 0, Player.ArmorMax, MapSpawn.PlayerSpawn, Now + 1500);
     }
 }
 foreach (Event in PendingEvents) {

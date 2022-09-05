@@ -186,12 +186,11 @@ Text PuzzlePlayUI() {
 	<quad pos="75 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
 	</frame>
 	<quad pos="-160 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_Quit" style="UICommon64_1" substyle="Prev_light" scriptevents="1"/>
-	<quad pos="-125 -75" z-index="1" size="15 15" bgcolor="FFFA" id="Button_HideClips" style="UICommon64_2" substyle="BlockProperties_dark" scriptevents="1" halign="center" valign="center"/>
+	<quad pos="-125 -75" z-index="2" size="15 15" bgcolor="FFFA" id="Button_HideClips" style="UICommon64_2" substyle="BlockProperties_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="115 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_TestMode" style="UICommon64_1" substyle="SteeringWheel_light" scriptevents="1"/>
 	<quad pos="102 -67.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Camera" style="UICommon64_1" substyle="Camera_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="102 -82.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Eraser" style="UICommon64_1" substyle="Eraser_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="102 -75" z-index="1" size="15 27" bgcolor="FFF" opacity="0.7" style="UICommon128_1" substyle="BgFrame1" halign="center" valign="center"/>
-	<quad pos="-125 -75" z-index="1" size="15 27" bgcolor="FFF" opacity="0.7" style="UICommon128_1" substyle="BgFrame1" halign="center" valign="center"/>
 	<quad pos="140 -65" z-index="2" size="20 20" bgcolor="FFFA" id="Button_Validate" style="UICommon64_1" substyle="ValidationFlagGreen" scriptevents="1"/>
 	<quad pos="0 -91" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog" z-index="-1"/>
 	</frame>	
