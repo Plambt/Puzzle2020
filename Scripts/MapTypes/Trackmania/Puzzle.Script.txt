@@ -400,6 +400,8 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 		foreach (Event in PendingEvents) {
 			switch(Event.Type) {
 				case CMapEditorPluginEvent::Type::MapModified: {
+					declare Integer VerifiedBlocks;
+					VerifiedBlocks = 0;
 					Map.TMObjective_AuthorTime = LoadedAuthorTime;
 					UpdateMapTimes();
 					NewBlockCoords.clear();
@@ -409,7 +411,6 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 							if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
 								NewBlockCoords.add(Block.Coord);
 								if (!PreBlockCoords.exists(Block.Coord)) {
-									log(Block.Coord);
 									if (!PuzzleBlocks.exists(Block.BlockModel) && !TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
 										CueUndo = True;
 									}
@@ -428,13 +429,25 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 										CustomSelectionCoords.add(Block.Coord + unit.Offset);
 									}
 								}
-								if (PreBlockCoords.exists(Block.Coord)) {
-									if (PreBlockModels[PreBlockCoords.keyof(Block.Coord)] != Block.BlockModel.Name || PreBlockDirs[PreBlockCoords.keyof(Block.Coord)] != Block.Direction) {
+								else {
+									declare Integer PreVerified;
+									PreVerified = VerifiedBlocks;
+									for (i, 0, PreBlockCoords.count - 1) {
+										if (PreBlockCoords[i] == Block.Coord && PreBlockDirs[i] == Block.Direction && PreBlockModels[i] == Block.BlockModel.Name) {
+											VerifiedBlocks += 1;
+											break;
+										}
+									}
+									//If it goes through the whole loop without Verifying. Cue an Undo for later.
+									if (PreVerified == VerifiedBlocks) {
 										CueUndo = True;
 									}
 								}
 							}
 						}
+					}
+					if (VerifiedBlocks != PreBlockCoords.count) {
+						CueUndo = True;
 					}
 					foreach (Coord in PreBlockCoords) {
 						if (Coord != <0, 0, 0>) {
@@ -750,7 +763,7 @@ main() {
 		if (IsPlaying == False) {
 			//EditLoop
 			BlockStockMode = True;
-			if (PlaceMode == CSmMapType::PlaceMode::FreeBlock || PlaceMode == CSmMapType::PlaceMode::GhostBlock || PlaceMode == CSmMapType::PlaceMode::Item) {
+			if (PlaceMode == CSmMapType::PlaceMode::FreeBlock || PlaceMode == CSmMapType::PlaceMode::Item) {
 				PlaceMode = CSmMapType::PlaceMode::Block;
 			}
 			//Save the used blocks into an array, have a maximum of 8.
