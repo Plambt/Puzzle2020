@@ -13,6 +13,7 @@
 #Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/PauseMenu_Server.Script.txt" as UIModules_PauseMenu
 #Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/EndRaceMenu_Server.Script.txt" as UIModules_EndRaceMenu
 #Include "ManiaApps/Nadeo/ModeLibs/Common/UIModules/Fade_Server.Script.txt" as UIModules_Fade
+#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
 
 #Const Description _("Beat Puzzle map with the fastest time possible!")
 #Const C_HudModulePath "" //< Path to the hud module
@@ -28,7 +29,6 @@ SetupDefaultUI();
 
 ***Match_InitMap***
 ***
-
 if (S_IsValidation) {
     Layers::Create("Layer_DefaultValUI", DefaultValUI());
     Layers::SetType("Layer_DefaultValUI", CUILayer::EUILayerType::Normal);
@@ -106,30 +106,40 @@ foreach (Player in Players) {
 foreach (Event in PendingEvents) {
     if (Event.Type == CSmModeEvent::EType::OnPlayerTriggersWaypoint) {
         if (Event.IsFinish) {
+            declare Integer FinishTime = Event.Player.RaceWaypointTimes[Event.Player.RaceWaypointTimes.count - 1];
             if (S_IsValidation) {
-                log(Now - Event.Player.StartTime);
+                log(FinishTime);
                 log(Map.TMObjective_AuthorTime);
-                if (Now - Event.Player.StartTime < Map.TMObjective_AuthorTime) {
-                    SetMapScores(Now - Event.Player.StartTime);
+                if (FinishTime < Map.TMObjective_AuthorTime) {
+                    SetMapScores(FinishTime);
+                    BestScore_RaceTime = (FinishTime);
+                    PersonalBest = Ghost_RetrieveFromPlayer(Event.Player);
+                    if (Map.MapInfo.FileName != "") {
+                        DataFileMgr.Replay_Save("PuzzleRecords/" ^ Map.MapName ^ "_" ^ Players[0].User.Name ^".Replay.Gbx", Map, PersonalBest);
+                    }
                 }
                 else if (Map.TMObjective_AuthorTime == -1 || Map.TMObjective_AuthorTime == 0) {
-                    SetMapScores(Now - Event.Player.StartTime);
+                    SetMapScores(FinishTime);
+                    BestScore_RaceTime = (FinishTime);
+                    PersonalBest = Ghost_RetrieveFromPlayer(Event.Player);
+                    if (Map.MapInfo.FileName != "") {
+                        DataFileMgr.Replay_Save("PuzzleRecords/" ^ Map.MapName ^ "_" ^ Players[0].User.Name ^".Replay.Gbx", Map, PersonalBest);
+                    }
                 }
                 UnspawnPlayer(Event.Player);
             }
             else {
                 //Player Finishes!!!
-                log((Now - Event.Player.StartTime) ^ " PlayerTime");
+                log((FinishTime) ^ " PlayerTime");
                 log(BestScore_RaceTime ^ " PlayerBest");
                 log(Map.TMObjective_AuthorTime ^ " AuthorTime");
-                //Solo_SetNewRecord(Event.Player.Score, GetRightMedal(Now - Event.Player.StartTime));
-                if ((Now - Event.Player.StartTime) < BestScore_RaceTime) {
-                    BestScore_RaceTime = (Now - Event.Player.StartTime);
+                if ((FinishTime) < BestScore_RaceTime) {
+                    BestScore_RaceTime = (FinishTime);
                     PersonalBest = Ghost_RetrieveFromPlayer(Event.Player);
                     DataFileMgr.Replay_Save("PuzzleRecords/" ^ Map.MapName ^ "_" ^ Players[0].User.Name ^".Replay.Gbx", Map, PersonalBest);
                 }
                 else if (BestScore_RaceTime == -1) {
-                    BestScore_RaceTime = (Now - Event.Player.StartTime);
+                    BestScore_RaceTime = (FinishTime);
                     PersonalBest = Ghost_RetrieveFromPlayer(Event.Player);
                     DataFileMgr.Replay_Save("PuzzleRecords/" ^ Map.MapName ^ "_" ^ Players[0].User.Name ^".Replay.Gbx", Map, PersonalBest);
                 }
@@ -310,10 +320,10 @@ main() {
                 if (!Frame_LapsCount.Visible) {
                     Frame_LapsCount.Show();
                 }
-                Label_LapsCount.Value = InputPlayer.CurrentLapNumber ^ "/" ^ Map.TMObjective_NbLaps;
+                Label_LapsCount.Value = (InputPlayer.CurrentLapNumber + 1) ^ "/" ^ Map.TMObjective_NbLaps;
             }
-            else {
-                PreviousPersonalBest = Net_PersonalBest;
+            else if (Frame_LapsCount.Visible) {
+                Frame_LapsCount.Hide();
             }
 
             if (Net_PersonalBest <= 0) {
@@ -413,7 +423,7 @@ Text DefaultValUI() {
                     Frame_LapsCount.Show();
                 }
                 if (InputPlayer != Null) {
-                    Label_LapsCount.Value = InputPlayer.CurrentLapNumber ^ "/" ^ Map.TMObjective_NbLaps;
+                    Label_LapsCount.Value = (InputPlayer.CurrentLapNumber + 1) ^ "/" ^ Map.TMObjective_NbLaps;
                 }
             }
             else if (Frame_LapsCount.Visible) {

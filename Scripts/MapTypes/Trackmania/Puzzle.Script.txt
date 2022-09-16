@@ -552,6 +552,13 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 			}
 		}
 		//Remove Free Blocks
+		
+		/*
+		Temp removed because it seems to be more destructive than anything.
+		Nadeo API pls xd
+		*/
+
+		/*
 		if (FreeBlockCoords.count > 0) {
 			CopyPaste_ResetSelection();
 			foreach (Coord in FreeBlockCoords) {
@@ -561,6 +568,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 			}
 			CopyPaste_ResetSelection();
 		}
+		*/
 		FreeBlockCoords.clear();
 		CustomSelectionCoords.clear();
 		UpdateMapTimes();
