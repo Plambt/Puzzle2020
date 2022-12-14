@@ -311,6 +311,8 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
     declare Text[] PreBlockModels;
     declare CBlock::CardinalDirections[] PreBlockDirs;
     declare Int3[] NewBlockCoords;
+	declare Integer ItemCount;
+	ItemCount = Items.count;
 	CueUndo = False;
 	LoadedAuthorTime = Map.TMObjective_AuthorTime;
 	IsPlayingEdit = True;
@@ -400,6 +402,9 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 		foreach (Event in PendingEvents) {
 			switch(Event.Type) {
 				case CMapEditorPluginEvent::Type::MapModified: {
+					if (Items.count != ItemCount) {
+						Undo();
+					}
 					declare Integer VerifiedBlocks;
 					VerifiedBlocks = 0;
 					Map.TMObjective_AuthorTime = LoadedAuthorTime;
@@ -764,14 +769,13 @@ main() {
 		IsPlaying = True;
 	}
 	UpdateValidability();
-	RemoveAllObjects();
     while(True) {
 		yield;
         +++MapTypeLoop+++
 		if (IsPlaying == False) {
 			//EditLoop
 			BlockStockMode = True;
-			if (PlaceMode == CSmMapType::PlaceMode::FreeBlock || PlaceMode == CSmMapType::PlaceMode::Item) {
+			if (PlaceMode == CSmMapType::PlaceMode::FreeBlock) {
 				PlaceMode = CSmMapType::PlaceMode::Block;
 			}
 			//Save the used blocks into an array, have a maximum of 8.
@@ -820,8 +824,13 @@ main() {
 						}
 					} 
 					case CMapEditorPluginEvent::Type::StartValidation: {
-						//StartValidation(True);
-						StartPuzzlePlay(True);
+						if (PuzzleBlockNames.count > 0) {
+							//StartValidation(True);
+							StartPuzzlePlay(True);
+						}
+						else {
+							Dialog_Message("You must add at least one Block to the Puzzle Block List.");
+						}
 					} 
 					case CMapEditorPluginEvent::Type::EditObjectives: {
 						CustomObjectivesMenu();
@@ -831,7 +840,12 @@ main() {
 						switch (Event.CustomEventType) {
 							case "PlaySoloPuzzle": {
 								//SaveMap(Map.MapInfo.FileName);
-								StartPuzzlePlay(False);
+								if (PuzzleBlockNames.count > 0) {
+									StartPuzzlePlay(False);
+								}
+								else {
+									Dialog_Message("You must add at least one Block to the Puzzle Block List.");
+								}
 							}
 						}
 					}
