@@ -764,6 +764,12 @@ main() {
 	declare metadata Boolean IsLocked for Map = True;
 	declare CBlockModel BlockModel;
 	RememberedTime = Map.TMObjective_AuthorTime;
+	//Check for unwanted & unintended stock blocks.
+	foreach (BlockModel in BlockModels){
+		if (BlockModel.InterfaceNumber != 0 && !PuzzleBlockNames.exists(BlockModel.Name)){
+			BlockModel.InterfaceNumber = 0;
+		}
+	}
 	ShowOtherPlugins();
 	if (LocalUser.Login != Map.AuthorLogin && IsLocked && ValidationStatus == CMapType::ValidationStatus::Validated) {
 		IsPlaying = True;
