@@ -1,6 +1,9 @@
 void Main () {
 	
 	auto@ ScriptVersion = Net::HttpGet("https://raw.githubusercontent.com/Plambt/Puzzle2020/main/ScriptVersion.txt");
+	while (!ScriptVersion.Finished()) {
+       	yield();
+   	};
 	string CurrentVersionJSON = IO::FromDataFolder("Puzzle2020_Version.json");
 	string VersionData = Json::Write(Json::FromFile(CurrentVersionJSON)).Replace("\"", "");
 
