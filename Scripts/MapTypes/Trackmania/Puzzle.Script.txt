@@ -41,8 +41,8 @@ K_BlockMemory MemToMemStruct(Text _Mem){
 }
 
 Void PlaceBlockMemory(){
-	declare persistent Text[][Text] PuzzleBlockMem for LocalUser;
-	declare persistent Text[][Text] PuzzleGhostBlockMem for LocalUser;
+	declare persistent Text[][Text] PuzzleBlockMem for UserMgr.MainUser;
+	declare persistent Text[][Text] PuzzleGhostBlockMem for UserMgr.MainUser;
 	log(PuzzleBlockMem);
 	log(PuzzleGhostBlockMem);
 	if (!PuzzleBlockMem.existskey(Map.MapInfo.MapUid) || !PuzzleGhostBlockMem.existskey(Map.MapInfo.MapUid)){
@@ -62,15 +62,15 @@ Void PlaceBlockMemory(){
 }
 
 Void ClearBlockMemory(){
-	declare persistent Text[][Text] PuzzleBlockMem for LocalUser;
-	declare persistent Text[][Text] PuzzleGhostBlockMem for LocalUser;
+	declare persistent Text[][Text] PuzzleBlockMem for UserMgr.MainUser;
+	declare persistent Text[][Text] PuzzleGhostBlockMem for UserMgr.MainUser;
 	PuzzleBlockMem[Map.MapInfo.MapUid].clear();
 	PuzzleGhostBlockMem[Map.MapInfo.MapUid].clear();
 }
 
 Void AddBlockToMemory(CBlock _Block){
-	declare persistent Text[][Text] PuzzleBlockMem for LocalUser;
-	declare persistent Text[][Text] PuzzleGhostBlockMem for LocalUser;
+	declare persistent Text[][Text] PuzzleBlockMem for UserMgr.MainUser;
+	declare persistent Text[][Text] PuzzleGhostBlockMem for UserMgr.MainUser;
 	declare Text Direction;
 	declare Text Position;
 	Position = _Block.Coord.X ^ "|" ^ _Block.Coord.Y ^ "|" ^ _Block.Coord.Z;
@@ -568,6 +568,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 							}
 						}
 					}
+					UserMgr.MainUser.PersistentSave();
 				} 
 				case CMapEditorPluginEvent::Type::LayerCustomEvent: {
 					switch (Event.CustomEventType) {
