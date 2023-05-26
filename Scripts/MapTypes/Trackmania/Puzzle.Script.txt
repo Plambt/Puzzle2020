@@ -88,11 +88,17 @@ Void AddBlockToMemory(CBlock _Block){
 			Direction = "West";
 		}
 	}
-	if (_Block.IsGhostBlock()){
-		PuzzleGhostBlockMem[Map.MapInfo.MapUid].add(_Block.BlockModel.Name ^ "," ^ Position ^ "," ^ Direction);
+	//If it's a freeblock.
+	if (_Block.Coord == <-1, 0, -1>){
+		return;
 	}
 	else {
-		PuzzleBlockMem[Map.MapInfo.MapUid].add(_Block.BlockModel.Name ^ "," ^ Position ^ "," ^ Direction);
+		if (_Block.IsGhostBlock()){
+			PuzzleGhostBlockMem[Map.MapInfo.MapUid].add(_Block.BlockModel.Name ^ "," ^ Position ^ "," ^ Direction);
+		}
+		else {
+			PuzzleBlockMem[Map.MapInfo.MapUid].add(_Block.BlockModel.Name ^ "," ^ Position ^ "," ^ Direction);
+		}
 	}
 }
 
@@ -505,9 +511,11 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 							if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
 								NewBlockCoords.add(Block.Coord);
 								if (!PreBlockCoords.exists(Block.Coord)) {
-									AddBlockToMemory(Block);
 									if (!PuzzleBlocks.exists(Block.BlockModel) && !TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
 										CueUndo = True;
+									}
+									if (!TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
+										AddBlockToMemory(Block);
 									}
 									if (Block.Coord == <-1, 0, -1>) {
 										if (!MapUsesFreeBlocks) {
