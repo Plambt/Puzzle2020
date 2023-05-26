@@ -107,6 +107,7 @@ foreach (Event in PendingEvents) {
     if (Event.Type == CSmModeEvent::EType::OnPlayerTriggersWaypoint) {
         if (Event.IsFinish) {
             declare Integer FinishTime = Event.Player.RaceWaypointTimes[Event.Player.RaceWaypointTimes.count - 1];
+            DataFileMgr.Replay_Save("PuzzleRecords/" ^ Map.MapName ^ "_" ^ Players[0].User.Name ^ "_Previous" ^".Replay.Gbx", Map, Ghost_RetrieveFromPlayer(Event.Player));
             if (S_IsValidation) {
                 log(FinishTime);
                 log(Map.TMObjective_AuthorTime);
