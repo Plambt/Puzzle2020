@@ -11,6 +11,92 @@
 #Include "TextLib" as TL
 #Include "MathLib" as ML
 
+#Struct K_BlockMemory {
+	Text BlockModelName;
+	Int3 Position;
+	CMapEditorPlugin::CardinalDirections Direction;
+}
+
+K_BlockMemory MemToMemStruct(Text _Mem){
+	declare Text[] MemSplit = TL::Split(",", _Mem);
+	declare Text[] PosSplit = TL::Split("|", MemSplit[1]);
+	declare K_BlockMemory NewMem;
+	NewMem.BlockModelName = MemSplit[0];
+	NewMem.Position = <TL::ToInteger(PosSplit[0]), TL::ToInteger(PosSplit[1]), TL::ToInteger(PosSplit[2])>;
+	switch (MemSplit[2]){
+		case "North": {
+			NewMem.Direction = CMapEditorPlugin::CardinalDirections::North;
+		}
+		case "East": {
+			NewMem.Direction = CMapEditorPlugin::CardinalDirections::East;
+		}
+		case "South": {
+			NewMem.Direction = CMapEditorPlugin::CardinalDirections::South;
+		}
+		case "West": {
+			NewMem.Direction = CMapEditorPlugin::CardinalDirections::West;
+		}
+	}
+	return NewMem;
+}
+
+Void PlaceBlockMemory(){
+	declare persistent Text[][Text] PuzzleBlockMem for LocalUser;
+	declare persistent Text[][Text] PuzzleGhostBlockMem for LocalUser;
+	log(PuzzleBlockMem);
+	log(PuzzleGhostBlockMem);
+	if (!PuzzleBlockMem.existskey(Map.MapInfo.MapUid) || !PuzzleGhostBlockMem.existskey(Map.MapInfo.MapUid)){
+		declare Text[] BlankTextArray;
+		PuzzleBlockMem[Map.MapInfo.MapUid] = BlankTextArray;
+		PuzzleGhostBlockMem[Map.MapInfo.MapUid] = BlankTextArray;
+	}
+	declare K_BlockMemory CurrentBlockMem;
+	foreach (BlockMem in PuzzleBlockMem[Map.MapInfo.MapUid]){
+		CurrentBlockMem = MemToMemStruct(BlockMem);
+		PlaceBlock(GetBlockModelFromName(CurrentBlockMem.BlockModelName), CurrentBlockMem.Position, CurrentBlockMem.Direction);
+	}
+	foreach (GhostBlockMem in PuzzleGhostBlockMem[Map.MapInfo.MapUid]){
+		CurrentBlockMem = MemToMemStruct(GhostBlockMem);
+		PlaceGhostBlock(GetBlockModelFromName(CurrentBlockMem.BlockModelName), CurrentBlockMem.Position, CurrentBlockMem.Direction);
+	}
+}
+
+Void ClearBlockMemory(){
+	declare persistent Text[][Text] PuzzleBlockMem for LocalUser;
+	declare persistent Text[][Text] PuzzleGhostBlockMem for LocalUser;
+	PuzzleBlockMem[Map.MapInfo.MapUid].clear();
+	PuzzleGhostBlockMem[Map.MapInfo.MapUid].clear();
+}
+
+Void AddBlockToMemory(CBlock _Block){
+	declare persistent Text[][Text] PuzzleBlockMem for LocalUser;
+	declare persistent Text[][Text] PuzzleGhostBlockMem for LocalUser;
+	declare Text Direction;
+	declare Text Position;
+	Position = _Block.Coord.X ^ "|" ^ _Block.Coord.Y ^ "|" ^ _Block.Coord.Z;
+	switch (_Block.Direction){
+		case CBlock::CardinalDirections::North: {
+			Direction = "North";
+		}
+		case CBlock::CardinalDirections::East: {
+			Direction = "East";
+		}
+		case CBlock::CardinalDirections::South: {
+			Direction = "South";
+		}
+		case CBlock::CardinalDirections::West: {
+			Direction = "West";
+		}
+	}
+	if (_Block.IsGhostBlock()){
+		PuzzleGhostBlockMem[Map.MapInfo.MapUid].add(_Block.BlockModel.Name ^ "," ^ Position ^ "," ^ Direction);
+	}
+	else {
+		PuzzleBlockMem[Map.MapInfo.MapUid].add(_Block.BlockModel.Name ^ "," ^ Position ^ "," ^ Direction);
+	}
+}
+
+
 Void UpdateValidability() {
 	declare StartsFinishes = 0;
 	declare Starts = 0;
@@ -370,6 +456,8 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 	BlockStockMode = False;
 	EditMode = CMapEditorPlugin::EditMode::Place;
 	PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+	//Place MemoryBlocks.
+	PlaceBlockMemory();
 	while (IsPlayingEdit) {
 		yield;
 		if (ValidationStatus != CMapType::ValidationStatus::Validated || ValidationStatus != CMapType::ValidationStatus::Validable) {
@@ -402,6 +490,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 		foreach (Event in PendingEvents) {
 			switch(Event.Type) {
 				case CMapEditorPluginEvent::Type::MapModified: {
+					ClearBlockMemory();
 					if (Items.count != ItemCount) {
 						Undo();
 					}
@@ -416,6 +505,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 							if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
 								NewBlockCoords.add(Block.Coord);
 								if (!PreBlockCoords.exists(Block.Coord)) {
+									AddBlockToMemory(Block);
 									if (!PuzzleBlocks.exists(Block.BlockModel) && !TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
 										CueUndo = True;
 									}
