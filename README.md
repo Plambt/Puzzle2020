@@ -18,3 +18,9 @@ Extra Info:
 - While it's very easy to cheat in this mode via openplanet. Doing so only cheats you out of the experience.
 - Your Personal Best replays are stored at **Documents\Trackmania2020\Replays\PuzzleRecords**  
 The mode uses them as backups for you PB times so do not remove or edit them.
+
+ToDo:
+- Solution Copy/Paste Feature. (Text to clipboard)
+- Support for more Stock Blocks.
+- Puzzle Play Sidebar for extra QOL options to not clutter main gameplay bar.
+And to make room for StockBlock page scrolling.
