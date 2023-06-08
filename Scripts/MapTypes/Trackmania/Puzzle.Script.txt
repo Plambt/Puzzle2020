@@ -17,6 +17,46 @@
 	CMapEditorPlugin::CardinalDirections Direction;
 }
 
+#Struct K_PuzzleMapInfo {
+	K_BlockMemory[] Blocks;
+	Integer[Text] BlockModelCount;
+	CBlockModel[] BlockStock;
+	Integer ItemCount;
+}
+
+#Struct K_PuzzlePlayInfo {
+	K_BlockMemory[] Blocks;
+	K_BlockMemory[] GhostBlocks;
+	Integer[Text] BlockModelCount;
+}
+
+
+declare K_PuzzleMapInfo PuzzleMapInfo;
+declare K_PuzzlePlayInfo PuzzlePlayInfo;
+declare Integer LoadedAuthorTime;
+declare Boolean CueUndo;
+
+K_BlockMemory BlockToStruct(CBlock _Block){
+	declare K_BlockMemory NewStruct;
+	NewStruct.BlockModelName = _Block.BlockModel.Name;
+	switch (_Block.Direction){
+		case CBlock::CardinalDirections::North: {
+			NewStruct.Direction = CMapEditorPlugin::CardinalDirections::North;
+		}
+		case CBlock::CardinalDirections::East: {
+			NewStruct.Direction = CMapEditorPlugin::CardinalDirections::East;
+		}
+		case CBlock::CardinalDirections::South: {
+			NewStruct.Direction = CMapEditorPlugin::CardinalDirections::South;
+		}
+		case CBlock::CardinalDirections::West: {
+			NewStruct.Direction = CMapEditorPlugin::CardinalDirections::West;
+		}
+	}
+	NewStruct.Position = _Block.Coord;
+	return NewStruct;
+}
+
 K_BlockMemory MemToMemStruct(Text _Mem){
 	declare Text[] MemSplit = TL::Split(",", _Mem);
 	declare Text[] PosSplit = TL::Split("|", MemSplit[1]);
@@ -40,11 +80,35 @@ K_BlockMemory MemToMemStruct(Text _Mem){
 	return NewMem;
 }
 
+Void PrePuzzleSetup(){
+	declare metadata Text[] PuzzleBlockNames for Map;
+	declare K_PuzzleMapInfo NewMapInfo;
+	foreach (Block in Blocks){
+		if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip){
+			NewMapInfo.Blocks.add(BlockToStruct(Block));
+			if (!NewMapInfo.BlockModelCount.existskey(Block.BlockModel.Name)){
+				NewMapInfo.BlockModelCount[Block.BlockModel.Name] = 1;
+			}
+			else {
+				NewMapInfo.BlockModelCount[Block.BlockModel.Name] += 1;
+			}
+		}
+	}
+	foreach (BlockModel in BlockModels) {
+		if (PuzzleBlockNames.exists(BlockModel.Name) && !NewMapInfo.BlockStock.exists(BlockModel)) {
+			NewMapInfo.BlockStock.add(BlockModel);
+		}
+	}
+	NewMapInfo.ItemCount = Items.count;
+	PuzzleMapInfo = NewMapInfo;
+}
+
 Void PlaceBlockMemory(){
+	if (Map.MapInfo.MapUid == ""){
+		return;
+	}
 	declare persistent Text[][Text] PuzzleBlockMem for UserMgr.MainUser;
 	declare persistent Text[][Text] PuzzleGhostBlockMem for UserMgr.MainUser;
-	log(PuzzleBlockMem);
-	log(PuzzleGhostBlockMem);
 	if (!PuzzleBlockMem.existskey(Map.MapInfo.MapUid) || !PuzzleGhostBlockMem.existskey(Map.MapInfo.MapUid)){
 		declare Text[] BlankTextArray;
 		PuzzleBlockMem[Map.MapInfo.MapUid] = BlankTextArray;
@@ -102,6 +166,123 @@ Void AddBlockToMemory(CBlock _Block){
 	}
 }
 
+Void UpdateMapTimes() {
+	declare persistent Integer RememberedTime for Map;
+	Map.TMObjective_AuthorTime = RememberedTime;
+	Map.ObjectiveTextAuthor = TL::TimeToText(Map.TMObjective_AuthorTime, True);
+	Map.ObjectiveTextGold 	= TL::TimeToText(Map.TMObjective_GoldTime, True);
+	Map.ObjectiveTextSilver = TL::TimeToText(Map.TMObjective_SilverTime, True);
+	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
+}
+
+Boolean StructExists(K_BlockMemory[] _StructArray, K_BlockMemory _Existor){
+	foreach (Struct in _StructArray){
+		if (Struct == _Existor){
+			return True;
+		}
+	}
+	return False;
+}
+
+Boolean MandValidMapCheck(){
+	declare metadata Boolean MapUsesFreeBlocks for Map;
+	declare metadata Boolean MapUsesGhostBlocks for Map;
+	declare persistent Integer RememberedTime for Map;
+	declare Integer PuzzleBlocksFound;
+	PuzzlePlayInfo.BlockModelCount.clear();
+	PuzzlePlayInfo.Blocks.clear();
+	PuzzlePlayInfo.GhostBlocks.clear();
+	CueUndo = False;
+	ClearBlockMemory();
+	if (Items.count != PuzzleMapInfo.ItemCount) {
+		CueUndo = True;
+	}
+	Map.TMObjective_AuthorTime = RememberedTime;
+	UpdateMapTimes();
+	CustomSelectionCoords.clear();
+	ClearBlockMemory();
+	declare K_BlockMemory CurrentStruct;
+	foreach (Block in Blocks) {
+		if (Block != Null) {
+			if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
+				CurrentStruct = BlockToStruct(Block);
+				if (!StructExists(PuzzleMapInfo.Blocks, CurrentStruct)){
+					if (!TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
+						if (!PuzzleMapInfo.BlockStock.exists(Block.BlockModel)){
+							CueUndo = True;
+						}
+						if (!PuzzlePlayInfo.BlockModelCount.existskey(Block.BlockModel.Name)){
+							PuzzlePlayInfo.BlockModelCount[Block.BlockModel.Name] = 1;
+						}
+						else {
+							PuzzlePlayInfo.BlockModelCount[Block.BlockModel.Name] += 1;
+							if (PuzzlePlayInfo.BlockModelCount[Block.BlockModel.Name] > Block.BlockModel.InterfaceNumber){
+								CueUndo = True;
+							}
+						}
+						AddBlockToMemory(Block);
+					}
+					if (Block.Coord == <-1, 0, -1>) {
+						if (!MapUsesFreeBlocks) {
+							CueUndo = True;
+						}
+					}
+					if (Block.IsGhostBlock()) {
+						if (!MapUsesGhostBlocks){
+							CueUndo = True;
+						}
+						else {
+							PuzzlePlayInfo.GhostBlocks.add(CurrentStruct);
+						}
+					}
+					else {
+						PuzzlePlayInfo.Blocks.add(CurrentStruct);
+					}
+					foreach (unit in Block.BlockUnits) {
+						CustomSelectionCoords.add(Block.Coord + unit.Offset);
+					}
+				}
+				else {
+					PuzzleBlocksFound += 1;
+				}
+			}
+		}
+	}
+	if (PuzzleBlocksFound != PuzzleMapInfo.Blocks.count){
+		CueUndo = True;
+	}
+	UserMgr.MainUser.PersistentSave();
+	return !CueUndo;
+}
+
+Void MandatoryMapCheck(){
+	declare metadata Boolean MapUsesFreeBlocks for Map;
+	declare metadata Boolean MapUsesGhostBlocks for Map;
+	if (PlaceMode != CMapEditorPlugin::PlaceMode::Block) {
+		switch (PlaceMode) {
+			case CMapEditorPlugin::PlaceMode::Test: {
+			}
+			case CMapEditorPlugin::PlaceMode::FreeBlock: {
+				if (!MapUsesFreeBlocks) {
+					PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+				}
+			}
+			case CMapEditorPlugin::PlaceMode::GhostBlock: {
+				if (!MapUsesGhostBlocks) {
+					PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+				}
+			}
+			default: {
+				PlaceMode = CMapEditorPlugin::PlaceMode::Block;
+			}
+		}
+	}
+	if (!PuzzleMapInfo.BlockStock.exists(CursorBlockModel)) {
+		if (CursorBlockModel != Null) {
+			CursorBlockModel = PuzzleMapInfo.BlockStock[0];
+		}
+	}
+}
 
 Void UpdateValidability() {
 	declare StartsFinishes = 0;
@@ -200,15 +381,6 @@ Void UpdateValidability() {
 	if (ValidationStatus == CMapType::ValidationStatus::NotValidable) {
 		ValidationStatus = CMapType::ValidationStatus::Validable;
 	}
-}
-
-Void UpdateMapTimes() {
-	declare persistent Integer RememberedTime for Map;
-	Map.TMObjective_AuthorTime = RememberedTime;
-	Map.ObjectiveTextAuthor = TL::TimeToText(Map.TMObjective_AuthorTime, True);
-	Map.ObjectiveTextGold 	= TL::TimeToText(Map.TMObjective_GoldTime, True);
-	Map.ObjectiveTextSilver = TL::TimeToText(Map.TMObjective_SilverTime, True);
-	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
 }
 
 Integer GetCountOfABlock(Text _BlockName) {
@@ -385,48 +557,13 @@ Text PuzzlePlayUI() {
 }
 
 Void StartPuzzlePlay(Boolean _IsValidation) {
+	PrePuzzleSetup();
 	HideEditorInterface = True;
-	declare Ident ident;
-	declare Int3 Coord;
-	declare Int3[] FreeBlockCoords;
-	declare Boolean CueUndo;
-	declare CBlockModel[] PuzzleBlocks for Map;
-	declare metadata Text[] PuzzleBlockNames for Map;
-	declare metadata Boolean MapUsesFreeBlocks for Map;
-	declare metadata Boolean MapUsesGhostBlocks for Map;
-	declare CBlockModel BlockModel;
 	declare Boolean IsPlayingEdit;
-	declare Integer LoadedAuthorTime;
-	declare Integer NumberOfVerifiedBlocks;
-	declare Integer PrevousBlockCount;
-	declare Int3[] PreBlockCoords for Map;
-    declare Text[] PreBlockModels;
-    declare CBlock::CardinalDirections[] PreBlockDirs;
-    declare Int3[] NewBlockCoords;
-	declare Integer ItemCount;
-	ItemCount = Items.count;
 	CueUndo = False;
 	LoadedAuthorTime = Map.TMObjective_AuthorTime;
 	IsPlayingEdit = True;
-	PrevousBlockCount = 0;
-	PuzzleBlocks.clear();
-	foreach (BlockModel in BlockModels) {
-		if (PuzzleBlockNames.exists(BlockModel.Name) && !PuzzleBlocks.exists(BlockModel)) {
-			PuzzleBlocks.add(BlockModel);
-		}
-	}
-    PreBlockCoords.clear();
-    PreBlockModels.clear();
-    PreBlockDirs.clear();
-    NewBlockCoords.clear();
-    foreach (Block in Blocks) {
-        if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
-            PreBlockCoords.add(Block.Coord);
-            PreBlockModels.add(Block.BlockModel.Name);
-            PreBlockDirs.add(Block.Direction);
-        }
-    }
-	CursorBlockModel = PuzzleBlocks[0];
+	CursorBlockModel = PuzzleMapInfo.BlockStock[0];
 	ManialinkText = PuzzlePlayUI();
 	HideOtherPlugins();
 	yield;
@@ -441,15 +578,15 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 		}
 	}
 	for (i, 0, BlockFrames.count - 1) {
-		if (i < PuzzleBlocks.count) {
+		if (i < PuzzleMapInfo.BlockStock.count) {
 			foreach (Control in BlockFrames[i].Controls) {
 				if (TL::Find("Icon", Control.ControlId, False, False)) {
 					declare CMlQuad BlockIcon <=> (Control as CMlQuad);
-					BlockIcon.Image = PuzzleBlocks[i].Icon;
+					BlockIcon.Image = PuzzleMapInfo.BlockStock[i].Icon;
 				}
 				else if (TL::Find("BlockCount", Control.ControlId, False, False)) {
 					declare CMlLabel BlockCount <=> (Control as CMlLabel);
-					BlockCount.Value = GetCountOfABlock(PuzzleBlocks[i].Name) ^ "/" ^ PuzzleBlocks[i].InterfaceNumber;
+					BlockCount.Value = GetCountOfABlock(PuzzleMapInfo.BlockStock[i].Name) ^ "/" ^ PuzzleMapInfo.BlockStock[i].InterfaceNumber;
 				}
 			}
 			BlockFrames[i].Show();
@@ -458,7 +595,6 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 			BlockFrames[i].Hide();
 		}
 	}
-	PrevousBlockCount = Blocks.count;
 	BlockStockMode = False;
 	EditMode = CMapEditorPlugin::EditMode::Place;
 	PlaceMode = CMapEditorPlugin::PlaceMode::Block;
@@ -466,117 +602,32 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 	PlaceBlockMemory();
 	while (IsPlayingEdit) {
 		yield;
+		MandatoryMapCheck();
 		if (ValidationStatus != CMapType::ValidationStatus::Validated || ValidationStatus != CMapType::ValidationStatus::Validable) {
 			ValidationStatus = CMapType::ValidationStatus::Validable;
-		}
-		if (PlaceMode != CMapEditorPlugin::PlaceMode::Block) {
-			switch (PlaceMode) {
-				case CMapEditorPlugin::PlaceMode::Test: {
-				}
-				case CMapEditorPlugin::PlaceMode::FreeBlock: {
-					if (!MapUsesFreeBlocks) {
-						PlaceMode = CMapEditorPlugin::PlaceMode::Block;
-					}
-				}
-				case CMapEditorPlugin::PlaceMode::GhostBlock: {
-					if (!MapUsesGhostBlocks) {
-						PlaceMode = CMapEditorPlugin::PlaceMode::Block;
-					}
-				}
-				default: {
-					PlaceMode = CMapEditorPlugin::PlaceMode::Block;
-				}
-			}
-		}
-		if (!PuzzleBlocks.exists(CursorBlockModel)) {
-			if (CursorBlockModel != Null) {
-				CursorBlockModel = PuzzleBlocks[0];
-			}
 		}
 		foreach (Event in PendingEvents) {
 			switch(Event.Type) {
 				case CMapEditorPluginEvent::Type::MapModified: {
-					ClearBlockMemory();
-					if (Items.count != ItemCount) {
+					MandValidMapCheck();
+					if (CueUndo){
 						Undo();
+						CueUndo = False;
 					}
-					declare Integer VerifiedBlocks;
-					VerifiedBlocks = 0;
-					Map.TMObjective_AuthorTime = LoadedAuthorTime;
-					UpdateMapTimes();
-					NewBlockCoords.clear();
-					CustomSelectionCoords.clear();
-					foreach (Block in Blocks) {
-						if (Block != Null) {
-							if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
-								NewBlockCoords.add(Block.Coord);
-								if (!PreBlockCoords.exists(Block.Coord)) {
-									if (!PuzzleBlocks.exists(Block.BlockModel) && !TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
-										CueUndo = True;
-									}
-									if (!TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
-										AddBlockToMemory(Block);
-									}
-									if (Block.Coord == <-1, 0, -1>) {
-										if (!MapUsesFreeBlocks) {
-											CueUndo = True;
-										}
-										else {
-											FreeBlockCoords.add(Cursor.Coord);
-										}
-									}
-									if (Block.IsGhostBlock() && !MapUsesGhostBlocks) {
-										CueUndo = True;
-									}
-									foreach (unit in Block.BlockUnits) {
-										CustomSelectionCoords.add(Block.Coord + unit.Offset);
-									}
-								}
-								else {
-									declare Integer PreVerified;
-									PreVerified = VerifiedBlocks;
-									for (i, 0, PreBlockCoords.count - 1) {
-										if (PreBlockCoords[i] == Block.Coord && PreBlockDirs[i] == Block.Direction && PreBlockModels[i] == Block.BlockModel.Name) {
-											VerifiedBlocks += 1;
-											break;
-										}
-									}
-									//If it goes through the whole loop without Verifying. Cue an Undo for later.
-									if (PreVerified == VerifiedBlocks) {
-										CueUndo = True;
-									}
-								}
-							}
-						}
-					}
-					if (VerifiedBlocks != PreBlockCoords.count) {
-						CueUndo = True;
-					}
-					foreach (Coord in PreBlockCoords) {
-						if (Coord != <0, 0, 0>) {
-							if (!NewBlockCoords.exists(Coord)) {
-								CueUndo = True;
-							}
-						}
-					}
-					foreach (Blockmodel in PuzzleBlocks) {
-						if (GetCountOfABlock(Blockmodel.Name) > Blockmodel.InterfaceNumber) {
-							CueUndo = True;
-						}
-					}
-					if (CueUndo) {
-						Undo();
-					}
-					CueUndo = False;
-					for (i, 0, PuzzleBlocks.count - 1) {
+					for (i, 0, PuzzleMapInfo.BlockStock.count - 1) {
 						foreach (Control in BlockFrames[i].Controls) {
 							if (TL::Find("BlockCount", Control.ControlId, False, False)) {
 								declare CMlLabel BlockCount <=> (Control as CMlLabel);
-								BlockCount.Value = GetCountOfABlock(PuzzleBlocks[i].Name) ^ "/" ^ PuzzleBlocks[i].InterfaceNumber;
+								if (PuzzlePlayInfo.BlockModelCount.existskey(PuzzleMapInfo.BlockStock[i].Name)){
+									BlockCount.Value = PuzzlePlayInfo.BlockModelCount[PuzzleMapInfo.BlockStock[i].Name] ^ "/" ^ PuzzleMapInfo.BlockStock[i].InterfaceNumber;
+								}
+								else {
+									BlockCount.Value = "0/" ^ PuzzleMapInfo.BlockStock[i].InterfaceNumber;
+								}
+								
 							}
 						}
 					}
-					UserMgr.MainUser.PersistentSave();
 				} 
 				case CMapEditorPluginEvent::Type::LayerCustomEvent: {
 					switch (Event.CustomEventType) {
@@ -585,7 +636,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 							if (PlaceMode == CMapEditorPlugin::PlaceMode::Test) {
 								PlaceMode = CMapEditorPlugin::PlaceMode::Block;
 							}
-							CursorBlockModel = PuzzleBlocks[TL::ToInteger(Event.CustomEventData[0])];
+							CursorBlockModel = PuzzleMapInfo.BlockStock[TL::ToInteger(Event.CustomEventData[0])];
 						}
 						case "PlacementEvent": {
 							switch (Event.CustomEventData[0]) {
@@ -614,13 +665,18 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						}
 						case "ValidateModeEvent": {
 							declare Integer BoolToInt;
-							if (_IsValidation) {
-								BoolToInt = 1;
+							if (MandValidMapCheck()){
+								if (_IsValidation) {
+									BoolToInt = 1;
+								}
+								else {
+									BoolToInt = 0;
+								}
+								TestMapWithMode("Modes/Trackmania/Puzzle/PuzzleSolo.Script.txt", "<root><setting name=\"S_IsValidation\" value=\""^ BoolToInt ^ "\" type=\"boolean\"/></root>");
 							}
 							else {
-								BoolToInt = 0;
+								Undo();
 							}
-							TestMapWithMode("Modes/Trackmania/Puzzle/PuzzleSolo.Script.txt", "<root><setting name=\"S_IsValidation\" value=\""^ BoolToInt ^ "\" type=\"boolean\"/></root>");
 						}
 						case "QuitPuzzleEvent": {
 							IsPlayingEdit = False;
@@ -637,23 +693,11 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 	}
 	else {
 		//remove Blocks and Ghost Blocks
-		for (i, 0, Blocks.count - 1) {
-			declare CBlock TempBlock;
-			TempBlock = Blocks[i];
-			if (TempBlock != Null) {
-				if (TempBlock.BlockModel.Name != "Grass" && !TempBlock.BlockModel.IsClip) {
-					if (!PreBlockCoords.exists(TempBlock.Coord)) {
-						if (TempBlock.IsGhostBlock()) {
-							RemoveGhostBlock(TempBlock.BlockModel, TempBlock.Coord, TempBlock.Dir);
-						}
-						else if (TempBlock.Coord == <-1, 0, -1>) {
-						} 
-						else {
-							RemoveBlock(TempBlock.BlockModel, TempBlock.Coord, TempBlock.Dir);
-						}
-					}
-				}
-			}
+		foreach (Block in PuzzlePlayInfo.Blocks){
+			RemoveBlock(GetBlockModelFromName(Block.BlockModelName), Block.Position, Block.Direction);
+		}
+		foreach (Block in PuzzlePlayInfo.GhostBlocks){
+			RemoveGhostBlock(GetBlockModelFromName(Block.BlockModelName), Block.Position, Block.Direction);
 		}
 		//Remove Free Blocks
 		
@@ -673,7 +717,6 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 			CopyPaste_ResetSelection();
 		}
 		*/
-		FreeBlockCoords.clear();
 		CustomSelectionCoords.clear();
 		UpdateMapTimes();
 		ManialinkText = "";
