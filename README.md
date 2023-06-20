@@ -20,7 +20,4 @@ Extra Info:
 The mode uses them as backups for you PB times so do not remove or edit them.
 
 ToDo:
-- Solution Copy/Paste Feature. (Text to clipboard)
 - Support for more Stock Blocks.
-- Puzzle Play Sidebar for extra QOL options to not clutter main gameplay bar.
-And to make room for StockBlock page scrolling.
