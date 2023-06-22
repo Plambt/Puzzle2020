@@ -35,7 +35,7 @@
 	Integer[Text] BlockModelCount;
 }
 
-
+declare CMlFrame[] BlockFrames;
 declare K_PuzzleMapInfo PuzzleMapInfo;
 declare K_PuzzlePlayInfo PuzzlePlayInfo;
 declare Integer LoadedAuthorTime;
@@ -300,6 +300,40 @@ Void MandatoryMapCheck(){
 	}
 }
 
+Integer GetCountOfABlock(Text _BlockName) {
+	declare Int3[] PreBlockCoords for Map;
+	declare Integer NumberOfBlocks;
+	foreach (Block in Blocks) {
+		if (Block != Null) {
+			if (!PreBlockCoords.exists(Block.Coord) && Block.BlockModel.Name == _BlockName) {
+				NumberOfBlocks += 1;
+			}
+		}
+	}
+	return NumberOfBlocks;
+}
+
+Void FillBlockInv(Integer _Page){
+	for (i, 0, BlockFrames.count - 1) {
+		if ((8 * _Page) + i < PuzzleMapInfo.BlockStock.count) {
+			foreach (Control in BlockFrames[i].Controls) {
+				if (TL::Find("Icon", Control.ControlId, False, False)) {
+					declare CMlQuad BlockIcon <=> (Control as CMlQuad);
+					BlockIcon.Image = PuzzleMapInfo.BlockStock[(8 * _Page) + i].Icon;
+				}
+				else if (TL::Find("BlockCount", Control.ControlId, False, False)) {
+					declare CMlLabel BlockCount <=> (Control as CMlLabel);
+					BlockCount.Value = GetCountOfABlock(PuzzleMapInfo.BlockStock[(8 * _Page) + i].Name) ^ "/" ^ PuzzleMapInfo.BlockStock[(8 * _Page) + i].InterfaceNumber;
+				}
+			}
+			BlockFrames[i].Show();
+		}
+		else {
+			BlockFrames[i].Hide();
+		}
+	}
+}
+
 Void UpdateValidability() {
 	declare StartsFinishes = 0;
 	declare Starts = 0;
@@ -399,19 +433,6 @@ Void UpdateValidability() {
 	}
 }
 
-Integer GetCountOfABlock(Text _BlockName) {
-	declare Int3[] PreBlockCoords for Map;
-	declare Integer NumberOfBlocks;
-	foreach (Block in Blocks) {
-		if (Block != Null) {
-			if (!PreBlockCoords.exists(Block.Coord) && Block.BlockModel.Name == _BlockName) {
-				NumberOfBlocks += 1;
-			}
-		}
-	}
-	return NumberOfBlocks;
-}
-
 Text PuzzlePlayUI() {
 	declare metadata Boolean MapUsesFreeBlocks for Map;
 	declare metadata Boolean MapUsesGhostBlocks for Map;
@@ -474,23 +495,32 @@ Text PuzzlePlayUI() {
 	</frame>
 	<frame id="Frame_Block8">
 		<label pos="85 -80" z-index="2" size="20 5" text="1/1" valign="center" textemboss="1" halign="right" id="Label_BlockCount8"/>
-		<quad pos="75 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block8Icon"/>
+		<quad pos="75 -75" z-index="1" size="20 20" bgcolor="FFFFFF00" halign="center" valign="center" id="Block8Icon" scriptevents="1"/>
 		<quad pos="75 -75" z-index="0" size="25 25" bgcolor="FFFA" halign="center" valign="center" style="UICommon128_1" substyle="Item"/>
 	</frame>
 	<quad pos="-160 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_Quit" style="UICommon64_1" substyle="Prev_light" scriptevents="1"/>
 	<quad pos="115 -65" z-index="1" size="20 20" bgcolor="FFFA" id="Button_TestMode" style="UICommon64_1" substyle="SteeringWheel_light" scriptevents="1"/>
+	<label pos="-136 -74" z-index="5" size="15 10" text="1" halign="center" valign="center" id="Label_PageNumber" textfont="GameFontExtraBold" textsize="5" textcolor="000"/>
+	<quad pos="-125 -67.5" z-index="3" size="15 15" bgcolor="FFFA" id="Button_PageRight" style="UICommon64_1" substyle="ArrowUpSquare_dark" scriptevents="1" halign="center" valign="center" rot="90"/>
+	<quad pos="-125 -82.5" z-index="3" size="15 15" bgcolor="FFFA" id="Button_PageLeft" style="UICommon64_1" substyle="ArrowUpSquare_dark" scriptevents="1" halign="center" valign="center" rot="-90"/>
+	<quad pos="-125 -67.5" z-index="2" size="15 15" bgcolor="FFFA" style="UICommon64_1" substyle="ArrowUpSquare_dark" halign="center" valign="center" rot="90" opacity="0.1"/>
+	<quad pos="-125 -82.5" z-index="2" size="15 15" bgcolor="FFFA" style="UICommon64_1" substyle="ArrowUpSquare_dark" halign="center" valign="center" rot="-90" opacity="0.1"/>
+	<quad pos="-118 -75" z-index="1" size="25 27" bgcolor="FFF" opacity="0.7" style="UICommon128_1" substyle="BgFrame1" halign="right" valign="center"/>
 	<quad pos="102 -67.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Camera" style="UICommon64_1" substyle="Camera_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="102 -82.5" z-index="2" size="15 15" bgcolor="FFFA" id="Button_Eraser" style="UICommon64_1" substyle="Eraser_dark" scriptevents="1" halign="center" valign="center"/>
 	<quad pos="102 -75" z-index="1" size="15 27" bgcolor="FFF" opacity="0.7" style="UICommon128_1" substyle="BgFrame1" halign="center" valign="center"/>
 	<quad pos="140 -65" z-index="2" size="20 20" bgcolor="FFFA" id="Button_Validate" style="UICommon64_1" substyle="ValidationFlagGreen" scriptevents="1"/>
-	<quad pos="0 -91" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog" z-index="-1"/>
-</frame>	
+	<quad pos="-12 -75" size="205 28" bgcolor="000" halign="center" scriptevents="1" style="UICommon128_1" substyle="BgFrame1" z-index="-1" valign="center" colorize="000" opacity="0.2"/>
+	<quad pos="0 -91" size="380 32" bgcolor="000" halign="center" valign="bottom" scriptevents="1" style="UICommon128_1" substyle="BgDialog" z-index="-2"/>
+	</frame>
 	<script><!--
 
 		#Include "TextLib" as TL
 
 		main () {
 			declare Text BlockText for Page;
+			declare Integer InvPage for Page;
+			declare Integer MaxPages for Page;
 			declare Boolean CanFreeBlock = {{{MapUsesFreeBlocks}}};
 			declare Boolean CanGhostBlock = {{{MapUsesGhostBlocks}}};
 			declare CMlFrame Frame_PlacementSelection = Page.GetFirstChild("Frame_PlacementSelection") as CMlFrame;
@@ -501,6 +531,10 @@ Text PuzzlePlayUI() {
 			declare CMlQuad Button_HideClips = Page.GetFirstChild("Button_HideClips") as CMlQuad;
 			declare CMlQuad Button_ToggleExtra = Page.GetFirstChild("Button_ToggleExtra") as CMlQuad;
 			declare CMlTextEdit Entry_Solution = Page.GetFirstChild("Entry_Solution") as CMlTextEdit;
+			declare CMlQuad Button_PageRight = Page.GetFirstChild("Button_PageRight") as CMlQuad;
+			declare CMlQuad Button_PageLeft = Page.GetFirstChild("Button_PageLeft") as CMlQuad;
+			declare CMlLabel Label_PageNumber = Page.GetFirstChild("Label_PageNumber") as CMlLabel;
+			Label_PageNumber.Value = "1";
 			if (CanFreeBlock || CanGhostBlock) {
 				Frame_PlacementSelection.Show();
 				if (CanFreeBlock) {
@@ -521,6 +555,18 @@ Text PuzzlePlayUI() {
 			}
 			while(True) {
 				yield;
+				if (InvPage == 0){
+					Button_PageLeft.Hide();
+				}
+				else {
+					Button_PageLeft.Show();
+				}
+				if (InvPage == MaxPages){
+					Button_PageRight.Hide();
+				}
+				else {
+					Button_PageRight.Show();
+				}
 				switch (Editor.PlaceMode) {
 					case CMapEditorPlugin::PlaceMode::FreeBlock: {
 						Button_PlaceMode.StyleSelected = False;
@@ -549,6 +595,20 @@ Text PuzzlePlayUI() {
 								else {
 									Frame_PuzzleExtras.RelativePosition_V3.X = 0.0;
 									Button_ToggleExtra.Substyle = "Prev_light";
+								}
+							}
+							case "Button_PageRight": {
+								if (InvPage < MaxPages){
+									InvPage += 1;
+									Label_PageNumber.Value = (InvPage + 1) ^ "";
+									SendCustomEvent("UpdateInv", [""]);
+								}
+							}
+							case "Button_PageLeft": {
+								if (InvPage > 0){
+									InvPage -= 1;
+									Label_PageNumber.Value = (InvPage + 1) ^ "";
+									SendCustomEvent("UpdateInv", [""]);
 								}
 							}
 							case "Button_CopySolution": {
@@ -609,36 +669,20 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 	CursorBlockModel = PuzzleMapInfo.BlockStock[0];
 	ManialinkText = PuzzlePlayUI();
 	declare Text BlockText for ManialinkPage;
+	declare Integer InvPage for ManialinkPage;
+	declare Integer MaxPages for ManialinkPage;
+	InvPage = 0;
 	HideOtherPlugins();
 	yield;
-
+	MaxPages = PuzzleMapInfo.BlockStock.count / 8;
 	//Fill Block Inventory
-	declare CMlFrame[] BlockFrames;
-	declare CMlControl Control;
 	BlockFrames.clear();
 	foreach (Control in (ManialinkPage.GetFirstChild("Frame_PuzzlePlayUI") as CMlFrame).Controls) {
 		if (TL::Find("Frame_Block", Control.ControlId, False, False)) {
 			BlockFrames.add((Control as CMlFrame));
 		}
 	}
-	for (i, 0, BlockFrames.count - 1) {
-		if (i < PuzzleMapInfo.BlockStock.count) {
-			foreach (Control in BlockFrames[i].Controls) {
-				if (TL::Find("Icon", Control.ControlId, False, False)) {
-					declare CMlQuad BlockIcon <=> (Control as CMlQuad);
-					BlockIcon.Image = PuzzleMapInfo.BlockStock[i].Icon;
-				}
-				else if (TL::Find("BlockCount", Control.ControlId, False, False)) {
-					declare CMlLabel BlockCount <=> (Control as CMlLabel);
-					BlockCount.Value = GetCountOfABlock(PuzzleMapInfo.BlockStock[i].Name) ^ "/" ^ PuzzleMapInfo.BlockStock[i].InterfaceNumber;
-				}
-			}
-			BlockFrames[i].Show();
-		}
-		else {
-			BlockFrames[i].Hide();
-		}
-	}
+	FillBlockInv(InvPage);
 	BlockStockMode = False;
 	EditMode = CMapEditorPlugin::EditMode::Place;
 	PlaceMode = CMapEditorPlugin::PlaceMode::Block;
@@ -658,17 +702,19 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						Undo();
 						CueUndo = False;
 					}
-					for (i, 0, PuzzleMapInfo.BlockStock.count - 1) {
+					for (i, 0, 7) {
 						foreach (Control in BlockFrames[i].Controls) {
-							if (TL::Find("BlockCount", Control.ControlId, False, False)) {
-								declare CMlLabel BlockCount <=> (Control as CMlLabel);
-								if (PuzzlePlayInfo.BlockModelCount.existskey(PuzzleMapInfo.BlockStock[i].Name)){
-									BlockCount.Value = PuzzlePlayInfo.BlockModelCount[PuzzleMapInfo.BlockStock[i].Name] ^ "/" ^ PuzzleMapInfo.BlockStock[i].InterfaceNumber;
+							if	(PuzzleMapInfo.BlockStock.existskey((8 * InvPage) + i)){
+								if (TL::Find("BlockCount", Control.ControlId, False, False)) {
+									declare CMlLabel BlockCount <=> (Control as CMlLabel);
+									if (PuzzlePlayInfo.BlockModelCount.existskey(PuzzleMapInfo.BlockStock[(8 * InvPage) + i].Name)){
+										BlockCount.Value = PuzzlePlayInfo.BlockModelCount[PuzzleMapInfo.BlockStock[(8 * InvPage) + i].Name] ^ "/" ^ PuzzleMapInfo.BlockStock[(8 * InvPage) + i].InterfaceNumber;
+									}
+									else {
+										BlockCount.Value = "0/" ^ PuzzleMapInfo.BlockStock[(8 * InvPage) + i].InterfaceNumber;
+									}
+									
 								}
-								else {
-									BlockCount.Value = "0/" ^ PuzzleMapInfo.BlockStock[i].InterfaceNumber;
-								}
-								
 							}
 						}
 					}
@@ -684,7 +730,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 							if (PlaceMode == CMapEditorPlugin::PlaceMode::Test) {
 								PlaceMode = CMapEditorPlugin::PlaceMode::Block;
 							}
-							CursorBlockModel = PuzzleMapInfo.BlockStock[TL::ToInteger(Event.CustomEventData[0])];
+							CursorBlockModel = PuzzleMapInfo.BlockStock[(8 * InvPage) + TL::ToInteger(Event.CustomEventData[0])];
 						}
 						case "PlacementEvent": {
 							switch (Event.CustomEventData[0]) {
@@ -713,6 +759,9 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						}
 						case "SaveSolutionEvent": {
 							SolutionToClipboard();
+						}
+						case "UpdateInv": {
+							FillBlockInv(InvPage);
 						}
 						case "SetSolutionEvent": {
 							if (BlockText == ""){
@@ -971,13 +1020,7 @@ main() {
 			foreach (BlockModel in BlockModels) {
 				if (BlockModel.InterfaceNumber > 0) {
 					if (!PuzzleBlockNames.exists(BlockModel.Name)) {
-						if (PuzzleBlockNames.count >= 8) {
-							BlockModel.InterfaceNumber = 0;
-							Dialog_Message("You can not assign more than 8 different blocks to a track!");
-						}
-						else {
-							PuzzleBlockNames.add(BlockModel.Name);
-						}
+						PuzzleBlockNames.add(BlockModel.Name);
 					}
 				} else if (PuzzleBlockNames.exists(BlockModel.Name)) {
 					PuzzleBlockNames.remove(BlockModel.Name);

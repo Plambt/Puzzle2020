@@ -20,4 +20,6 @@ Extra Info:
 The mode uses them as backups for you PB times so do not remove or edit them.
 
 ToDo:
-- Support for more Stock Blocks.
+- Rewrite all code and split into libraries.
+- Rewrite Openplanet Plugin to download from local rather than online.
+- Add Shortcuts side mode.
