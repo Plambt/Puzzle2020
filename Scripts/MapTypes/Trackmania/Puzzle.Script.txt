@@ -1,7 +1,7 @@
 #RequireContext CSmMapType
 #Const Version			"03-21-2022"
 #Const MapTypeVersion	1
-#Const ScriptName		"Stunts.Script.txt"
+#Const ScriptName		"Puzzle.Script.txt"
 
 #Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
 #Include "Libs/Nadeo/MapType.Script.txt" as MapType

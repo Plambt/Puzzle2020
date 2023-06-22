@@ -21,5 +21,5 @@ The mode uses them as backups for you PB times so do not remove or edit them.
 
 ToDo:
 - Rewrite all code and split into libraries.
-- Rewrite Openplanet Plugin to download from local rather than online.
+- Rewrite Openplanet Plugin to download from plugin rather than online.
 - Add Shortcuts side mode.
