@@ -1,4 +1,4 @@
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaBase.Script.txt"
 
 #Setting S_IsValidation False as "IsValidation"
 
@@ -9,15 +9,15 @@
 
 #Include "TextLib" as TL
 #Include "MathLib" as ML
-#Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/PauseMenu_Server.Script.txt" as UIModules_PauseMenu
-#Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/EndRaceMenu_Server.Script.txt" as UIModules_EndRaceMenu
-#Include "ManiaApps/Nadeo/ModeLibs/Common/UIModules/Fade_Server.Script.txt" as UIModules_Fade
-#Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
+#Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
+#Include "Libs/Nadeo/Trackmania/Modes/PlayMap/UIModules/PauseMenu_Server.Script.txt" as UIModules_PauseMenu
+#Include "Libs/Nadeo/Trackmania/Modes/PlayMap/UIModules/EndRaceMenu_Server.Script.txt" as UIModules_EndRaceMenu
+#Include "Libs/Nadeo/CMGame/Modes/UIModules/Fade_Server.Script.txt" as UIModules_Fade
+#Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
 
 #Const Description _("Beat Puzzle map with the fastest time possible!")
 #Const C_HudModulePath "" //< Path to the hud module
-#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/RaceTest/RaceTest.Script.txt" //< Url of the mania app
+#Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/RaceTest.Script.txt" //< Url of the mania app
 
 declare CGhost PersonalBest;
 declare CSmMapLandmark MapSpawn;
