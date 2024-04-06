@@ -219,7 +219,53 @@ Boolean MandValidMapCheck(){
 	UpdateMapTimes();
 	CustomSelectionCoords.clear();
 	declare K_BlockMemory CurrentStruct;
-	foreach (Block in Blocks) {
+	foreach (Block in GhostBlocks) {
+		if (Block != Null) {
+			if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
+				CurrentStruct = BlockToStruct(Block);
+				if (!StructExists(PuzzleMapInfo.Blocks, CurrentStruct)){
+					if (!TL::Find("Pillar", Block.BlockModel.Name, False, False)) {
+						if (!PuzzleMapInfo.BlockStock.exists(Block.BlockModel)){
+							CueUndo = True;
+						}
+						if (!PuzzlePlayInfo.BlockModelCount.existskey(Block.BlockModel.Name)){
+							PuzzlePlayInfo.BlockModelCount[Block.BlockModel.Name] = 1;
+						}
+						else {
+							PuzzlePlayInfo.BlockModelCount[Block.BlockModel.Name] += 1;
+							if (PuzzlePlayInfo.BlockModelCount[Block.BlockModel.Name] > Block.BlockModel.InterfaceNumber){
+								CueUndo = True;
+							}
+						}
+					}
+					if (Block.Coord == <-1, 0, -1>) {
+						if (!MapUsesFreeBlocks) {
+							CueUndo = True;
+						}
+					}
+					if (Block.IsGhostBlock()) {
+						if (!MapUsesGhostBlocks){
+							CueUndo = True;
+						}
+						else {
+							PuzzlePlayInfo.GhostBlocks.add(CurrentStruct);
+						}
+					}
+					else {
+						PuzzlePlayInfo.Blocks.add(CurrentStruct);
+					}
+					foreach (unit in Block.BlockUnits) {
+						CustomSelectionCoords.add(Block.Coord + unit.Offset);
+					}
+				}
+				else {
+					PuzzleBlocksFound += 1;
+				}
+			}
+		}
+	}
+	//Lazy copy paste ;-;
+	foreach (Block in ClassicBlocks) {
 		if (Block != Null) {
 			if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip) {
 				CurrentStruct = BlockToStruct(Block);
