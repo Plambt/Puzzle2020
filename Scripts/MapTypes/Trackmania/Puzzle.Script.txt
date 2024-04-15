@@ -14,6 +14,8 @@
 #Struct K_BlockMemory {
 	Text BlockModelName;
 	Int3 Position;
+	Boolean IsGhostBlock;
+	Boolean IsFreeBlock;
 	CMapEditorPlugin::CardinalDirections Direction;
 }
 
@@ -23,7 +25,9 @@
 }
 
 #Struct K_PuzzleMapInfo {
-	K_BlockMemory[] Blocks;
+	Integer FreeBlockCount;
+	Integer BlockCount;
+	K_BlockMemory[Text] Blocks;
 	Integer[Text] BlockModelCount;
 	CBlockModel[] BlockStock;
 	Integer ItemCount;
@@ -100,6 +104,10 @@ Void TextToSolution(Text _SolutionText){
 K_BlockMemory BlockToStruct(CBlock _Block){
 	declare K_BlockMemory NewStruct;
 	NewStruct.BlockModelName = _Block.BlockModel.Name;
+	NewStruct.IsGhostBlock = _Block.IsGhostBlock();
+	if (_Block.Coord == <-1, 0, -1>) {
+		NewStruct.IsFreeBlock = True;
+	}
 	switch (_Block.Direction){
 		case CBlock::CardinalDirections::North: {
 			NewStruct.Direction = CMapEditorPlugin::CardinalDirections::North;
@@ -121,15 +129,24 @@ K_BlockMemory BlockToStruct(CBlock _Block){
 Void PrePuzzleSetup(){
 	declare metadata Text[] PuzzleBlockNames for Map;
 	declare K_PuzzleMapInfo NewMapInfo;
+	declare K_BlockMemory CurBlockMem;
 	foreach (Block in Blocks){
 		if (Block.BlockModel.Name != "Grass" && !Block.BlockModel.IsClip){
-			NewMapInfo.Blocks.add(BlockToStruct(Block));
-			if (!NewMapInfo.BlockModelCount.existskey(Block.BlockModel.Name)){
-				NewMapInfo.BlockModelCount[Block.BlockModel.Name] = 1;
-			}
-			else {
-				NewMapInfo.BlockModelCount[Block.BlockModel.Name] += 1;
-			}
+			CurBlockMem = BlockToStruct(Block);
+				if (CurBlockMem.IsFreeBlock) {
+					NewMapInfo.FreeBlockCount += 1;
+				}
+				else {
+					NewMapInfo.BlockCount += 1;
+				}
+				NewMapInfo.Blocks[CurBlockMem.tojson()] = CurBlockMem;
+				if (!NewMapInfo.BlockModelCount.existskey(Block.BlockModel.Name)){
+					NewMapInfo.BlockModelCount[Block.BlockModel.Name] = 1;
+				}
+				else {
+					NewMapInfo.BlockModelCount[Block.BlockModel.Name] += 1;
+				}
+			
 		}
 	}
 	foreach (BlockModel in BlockModels) {
@@ -194,11 +211,9 @@ Void UpdateMapTimes() {
 	Map.ObjectiveTextBronze = TL::TimeToText(Map.TMObjective_BronzeTime, True);
 }
 
-Boolean StructExists(K_BlockMemory[] _StructArray, K_BlockMemory _Existor){
-	foreach (Struct in _StructArray){
-		if (Struct == _Existor){
-			return True;
-		}
+Boolean StructExists(K_BlockMemory[Text] _StructArray, K_BlockMemory _Existor){
+	if (_StructArray.existskey(_Existor.tojson())){
+		return True;
 	}
 	return False;
 }
@@ -208,6 +223,7 @@ Boolean MandValidMapCheck(){
 	declare metadata Boolean MapUsesGhostBlocks for Map;
 	declare persistent Integer RememberedTime for Map;
 	declare Integer PuzzleBlocksFound;
+	declare Integer FreePuzzleBlocksFound;
 	PuzzlePlayInfo.BlockModelCount.clear();
 	PuzzlePlayInfo.Blocks.clear();
 	PuzzlePlayInfo.GhostBlocks.clear();
@@ -305,12 +321,17 @@ Boolean MandValidMapCheck(){
 					}
 				}
 				else {
-					PuzzleBlocksFound += 1;
+					if (CurrentStruct.IsFreeBlock) {
+						FreePuzzleBlocksFound +=1;
+					}
+					else {
+						PuzzleBlocksFound += 1;
+					}
 				}
 			}
 		}
 	}
-	if (PuzzleBlocksFound != PuzzleMapInfo.Blocks.count){
+	if (PuzzleBlocksFound != PuzzleMapInfo.BlockCount || FreePuzzleBlocksFound != PuzzleMapInfo.FreeBlockCount){
 		CueUndo = True;
 	}
 	SaveBlockMemory();
