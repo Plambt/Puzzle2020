@@ -1080,9 +1080,6 @@ main() {
 		if (IsPlaying == False) {
 			//EditLoop
 			BlockStockMode = True;
-			if (PlaceMode == CSmMapType::PlaceMode::FreeBlock) {
-				PlaceMode = CSmMapType::PlaceMode::Block;
-			}
 			//Save the used blocks into an array, have a maximum of 8.
 			foreach (BlockModel in BlockModels) {
 				if (BlockModel.InterfaceNumber > 0) {
