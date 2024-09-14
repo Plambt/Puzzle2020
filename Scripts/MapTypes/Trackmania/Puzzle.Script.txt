@@ -20,6 +20,7 @@
 }
 
 #Struct K_CopyMemory {
+	Integer SolutionDate;
 	K_BlockMemory[] Blocks;
 	K_BlockMemory[] GhostBlocks;
 }
@@ -69,8 +70,6 @@ Void TextToSolution(Text _SolutionText){
 	declare K_CopyMemory NewMemory;
 	declare CBlockModel CurrentModel;
 	NewMemory.fromjson(_SolutionText);
-	log(_SolutionText);
-	log(NewMemory);
 	PuzzlePlayInfo.BlockModelCount.clear();
 	ClearSolution();
 	foreach (Block in NewMemory.Blocks){
@@ -181,17 +180,47 @@ Void PlaceBlockMemory(){
 }
 
 Void SaveBlockMemory(){
+	// Delete the old stuff it might be clogging up persistant memory.
+	declare persistent Text[][Text] PuzzleBlockMem for UserMgr.MainUser;
+	declare persistent Text[][Text] PuzzleGhostBlockMem for UserMgr.MainUser;
+	PuzzleBlockMem.clear();
+	PuzzleGhostBlockMem.clear();
+	// Actual function starts here:
+
 	declare K_CopyMemory NewMemory;
 	// Check if map is final
 	if (Map.MapInfo.MapUid == ""){
 		return;
 	}
 	declare persistent Text[Text] PuzzleBlockMemV2 for UserMgr.MainUser;
+	// Delete Old Solutions ( > 1 day old)
+	declare Text[] KeysToDelete;
+	foreach (Solution in PuzzleBlockMemV2){
+		declare K_CopyMemory CurMemory;
+		CurMemory.fromjson(Solution);
+		/* Debug Solution removal *Based on date
+		log((System.CurrentLocalDate - CurMemory.SolutionDate) ^ " Time Since Save");
+		log(CurMemory.SolutionDate ^ " SolutionDate");
+		log(System.CurrentLocalDate ^ " CurDate");
+		log("----------------------");
+		*/
+		if (CurMemory.SolutionDate == 0) { // Reset date for old solutions.
+			CurMemory.SolutionDate = System.CurrentLocalDate;
+		}
+		// Remove solutions older ( or newer? ) than a day.
+		if ((System.CurrentLocalDate - CurMemory.SolutionDate >= 86400 || System.CurrentLocalDate - CurMemory.SolutionDate <= -86400)){ 
+			KeysToDelete.add(PuzzleBlockMemV2.keyof(Solution));
+		}
+	}
+	foreach (Key in KeysToDelete){
+		PuzzleBlockMemV2.remove(Key);
+	}
 	// Make new Key
 	if (!PuzzleBlockMemV2.existskey(Map.MapInfo.MapUid)){
 		PuzzleBlockMemV2[Map.MapInfo.MapUid] = "{}";
 	}
 	// Fill Block Memory
+	NewMemory.SolutionDate = System.CurrentLocalDate;
 	NewMemory.Blocks = PuzzlePlayInfo.Blocks;
 	NewMemory.GhostBlocks = PuzzlePlayInfo.GhostBlocks;
 	declare Text TextMem = NewMemory.tojson();
@@ -218,7 +247,7 @@ Boolean StructExists(K_BlockMemory[Text] _StructArray, K_BlockMemory _Existor){
 	return False;
 }
 
-Boolean MandValidMapCheck(){
+Boolean MandValidMapCheck(Boolean IsValidation){
 	declare metadata Boolean MapUsesFreeBlocks for Map;
 	declare metadata Boolean MapUsesGhostBlocks for Map;
 	declare persistent Integer RememberedTime for Map;
@@ -334,7 +363,10 @@ Boolean MandValidMapCheck(){
 	if (PuzzleBlocksFound != PuzzleMapInfo.BlockCount || FreePuzzleBlocksFound != PuzzleMapInfo.FreeBlockCount){
 		CueUndo = True;
 	}
-	SaveBlockMemory();
+	if (!IsValidation){ // Only thing the validation check is for. xd
+		SaveBlockMemory();
+	}
+	
 	return !CueUndo;
 }
 
@@ -764,7 +796,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 		foreach (Event in PendingEvents) {
 			switch(Event.Type) {
 				case CMapEditorPluginEvent::Type::MapModified: {
-					MandValidMapCheck();
+					MandValidMapCheck(_IsValidation);
 					if (CueUndo){
 						Undo();
 						CueUndo = False;
@@ -836,7 +868,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 							}
 							else if (BlockText != "Solution Entry"){
 								TextToSolution(BlockText);
-								MandValidMapCheck();
+								MandValidMapCheck(_IsValidation);
 								if (CueUndo){
 									Undo();
 									CueUndo = False;
@@ -845,7 +877,7 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						}
 						case "ValidateModeEvent": {
 							declare Integer BoolToInt;
-							if (MandValidMapCheck()){
+							if (MandValidMapCheck(_IsValidation)){
 								if (_IsValidation) {
 									BoolToInt = 1;
 								}
