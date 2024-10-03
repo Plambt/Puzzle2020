@@ -197,6 +197,8 @@ Void SaveBlockMemory(){
 	declare Text[] KeysToDelete;
 	foreach (Solution in PuzzleBlockMemV2){
 		declare K_CopyMemory CurMemory;
+		declare Text CurKey;
+		CurKey = PuzzleBlockMemV2.keyof(Solution);
 		CurMemory.fromjson(Solution);
 		/* Debug Solution removal *Based on date
 		log((System.CurrentLocalDate - CurMemory.SolutionDate) ^ " Time Since Save");
@@ -208,12 +210,12 @@ Void SaveBlockMemory(){
 			CurMemory.SolutionDate = System.CurrentLocalDate;
 		}
 		// Remove solutions older ( or newer? ) than a day.
-		if ((System.CurrentLocalDate - CurMemory.SolutionDate >= 86400 || System.CurrentLocalDate - CurMemory.SolutionDate <= -86400)){ 
-			KeysToDelete.add(PuzzleBlockMemV2.keyof(Solution));
+		if ((System.CurrentLocalDate - CurMemory.SolutionDate >= 86400 || System.CurrentLocalDate - CurMemory.SolutionDate <= -86400) && CurKey != Map.MapInfo.MapUid){ 
+			KeysToDelete.add(CurKey);
 		}
 	}
 	foreach (Key in KeysToDelete){
-		PuzzleBlockMemV2.remove(Key);
+		PuzzleBlockMemV2.removekey(Key);
 	}
 	// Make new Key
 	if (!PuzzleBlockMemV2.existskey(Map.MapInfo.MapUid)){
@@ -544,7 +546,7 @@ Text PuzzlePlayUI() {
 		<quad pos="-107 65" z-index="0" size="10 10" bgcolor="FFFA" id="Button_ToggleExtra" style="UICommon64_1" substyle="Next_light" scriptevents="1"/>
 		<label pos="-160 65" z-index="0" size="20 5" text="Toggle Block Helpers" style="CardButtonMediumL" scriptevents="1" id="Button_HideClips"/>
 		<label pos="-160 55" z-index="0" size="20 5" text="Copy Solution to Clipboard" style="CardButtonMediumL" scriptevents="1" id="Button_CopySolution"/>
-		<label pos="-160 45" z-index="0" size="20 5" text="Paste Solition from Entry" style="CardButtonMediumL" scriptevents="1" id="Button_SendSolution"/>
+		<label pos="-160 45" z-index="0" size="20 5" text="Paste Solution from Entry" style="CardButtonMediumL" scriptevents="1" id="Button_SendSolution"/>
 		<textedit pos="-160 31.5" z-index="0" size="45 7" default="Solution Entry" halign="left" valign="center" id="Entry_Solution"/>
 		<label pos="-135 27.5" z-index="0" size="50 15" text="Using solution changing tools may lead to the loss of your solution! Make sure to keep text backups via the copy solution button!" halign="center" valign="top" textemboss="1" textfont="GameFontSemiBold" textcolor="FAA" autonewline="1" textsize="2"/>
 		<quad pos="-165 70" z-index="-1" size="70 70" halign="left" style="UICommon128_1" substyle="BgToolTilted" valign="top" opacity="0.5" colorize="000"/>
