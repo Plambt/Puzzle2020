@@ -285,6 +285,10 @@ Boolean MandValidMapCheck(Boolean IsValidation){
 							}
 						}
 					}
+					else {
+						// Valid pillars can't be ghost blocks
+						CueUndo = True;
+					}
 					if (Block.Coord == <-1, 0, -1>) {
 						if (!MapUsesFreeBlocks) {
 							CueUndo = True;
