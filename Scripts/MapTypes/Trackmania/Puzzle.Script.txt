@@ -546,6 +546,8 @@ Text PuzzlePlayUI() {
 	<manialink version="3">	
 	<frame id="Frame_PuzzlePlayUI">
 	<frame id="Frame_PuzzleExtras" pos="-53">
+		<label pos="-154 72" z-index="0" size="5 5" text="" style="CardButtonMediumXS" id="Button_DeleteSolution" halign="center" valign="center" scriptevents="1" textsize="0"/>
+		<label pos="-160 80" z-index="0" size="50 5" text="(Click again to delete solution)" id="Label_DeleteWarning" halign="left" valign="center" textsize="2" textfont="GameFontSemiBold" textcolor="F00" textemboss="1" hidden="1"/>
 		<label pos="-135 72" z-index="0" size="20 10" text="Extras" halign="center" valign="center" textemboss="1" textfont="GameFontBlack" autonewline="1" textsize="4"/>
 		<quad pos="-107 65" z-index="0" size="10 10" bgcolor="FFFA" id="Button_ToggleExtra" style="UICommon64_1" substyle="Next_light" scriptevents="1"/>
 		<label pos="-160 65" z-index="0" size="20 5" text="Toggle Block Helpers" style="CardButtonMediumL" scriptevents="1" id="Button_HideClips"/>
@@ -626,6 +628,7 @@ Text PuzzlePlayUI() {
 			declare Text BlockText for Page;
 			declare Integer InvPage for Page;
 			declare Integer MaxPages for Page;
+			declare Integer WarningLevel;
 			declare Boolean CanFreeBlock = {{{MapUsesFreeBlocks}}};
 			declare Boolean CanGhostBlock = {{{MapUsesGhostBlocks}}};
 			declare CMlFrame Frame_PlacementSelection = Page.GetFirstChild("Frame_PlacementSelection") as CMlFrame;
@@ -639,6 +642,7 @@ Text PuzzlePlayUI() {
 			declare CMlQuad Button_PageRight = Page.GetFirstChild("Button_PageRight") as CMlQuad;
 			declare CMlQuad Button_PageLeft = Page.GetFirstChild("Button_PageLeft") as CMlQuad;
 			declare CMlLabel Label_PageNumber = Page.GetFirstChild("Label_PageNumber") as CMlLabel;
+			declare CMlLabel Label_DeleteWarning = Page.GetFirstChild("Label_DeleteWarning") as CMlLabel;
 			Label_PageNumber.Value = "1";
 			if (CanFreeBlock || CanGhostBlock) {
 				Frame_PlacementSelection.Show();
@@ -695,6 +699,8 @@ Text PuzzlePlayUI() {
 							case "Button_ToggleExtra": {
 								if (Frame_PuzzleExtras.RelativePosition_V3.X == 0.0){
 									Frame_PuzzleExtras.RelativePosition_V3.X = -53.0;
+									WarningLevel = 0;
+									Label_DeleteWarning.Hide();
 									Button_ToggleExtra.Substyle = "Next_light";
 								}
 								else {
@@ -714,6 +720,17 @@ Text PuzzlePlayUI() {
 									InvPage -= 1;
 									Label_PageNumber.Value = (InvPage + 1) ^ "";
 									SendCustomEvent("UpdateInv", [""]);
+								}
+							}
+							case "Button_DeleteSolution": {
+								if (WarningLevel >= 1){
+									WarningLevel = 0;
+									Label_DeleteWarning.Hide();
+									SendCustomEvent("DeleteSolutionEvent", [""]);
+								}
+								else {
+									WarningLevel = WarningLevel + 1;
+									Label_DeleteWarning.Show();
 								}
 							}
 							case "Button_CopySolution": {
@@ -864,6 +881,9 @@ Void StartPuzzlePlay(Boolean _IsValidation) {
 						}
 						case "SaveSolutionEvent": {
 							SolutionToClipboard();
+						}
+						case "DeleteSolutionEvent": {
+							TextToSolution("");
 						}
 						case "UpdateInv": {
 							FillBlockInv(InvPage);
